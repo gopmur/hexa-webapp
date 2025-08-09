@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { Button } from "$lib/components/ui/button";
-	import Header from "$lib/components/header/header.svelte";
+	import Header from "$lib/header/header.svelte";
 	import * as Tabs from "$lib/components/ui/tabs";
 	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import ChartIcon from "@lucide/svelte/icons/chart-spline";
 	import UserRoundCogIcon from "@lucide/svelte/icons/user-round-cog";
 	import FileTextIcon from "@lucide/svelte/icons/file-text";
+	import DataPage from "$lib/data-page/data-page.svelte"
 </script>
 
 <main class="h-dvh w-screen">
@@ -15,7 +15,9 @@
 			<Tabs.Content value="settings" class="h-full"
 				><div class="h-full"></div></Tabs.Content
 			>
-			<Tabs.Content value="data"><div class="h-full"></div></Tabs.Content>
+			<Tabs.Content value="data"><div class="h-full">
+				<DataPage />
+			</div></Tabs.Content>
 			<Tabs.Content value="patients"><div class="h-full"></div></Tabs.Content>
 			<Tabs.Content value="report"><div class="h-full"></div></Tabs.Content>
 			<Tabs.List class="w-full rounded-none h-20">
