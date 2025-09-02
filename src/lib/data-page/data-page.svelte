@@ -1,47 +1,53 @@
 <script lang="ts">
 	import { LineChart } from "layerchart";
-	import { scaleUtc } from "d3-scale";
 	import { curveLinear } from "d3-shape";
 	import * as Chart from "$lib/components/ui/chart/index.js";
+	import { data } from "./data";
+	import Button from "$lib/components/ui/button/button.svelte";
+	import { onMount } from "svelte";
 
-	const chartData = [
-		{ time: 1, position: 186, torque: 30 },
-		{ time: 2, position: 305, torque: 30 },
-		{ time: 3, position: 237, torque: 30 },
-		{ time: 4, position: 73, torque: 30 },
-		{ time: 5, position: 209, torque: 30 },
-		{ time: 6, position: 214, torque: 30 },
-	];
 	const chartConfig = {
 		position: { label: "Position", color: "var(--chart-1)" },
 		torque: { label: "Torque", color: "var(--chart-2)" },
 	} satisfies Chart.ChartConfig;
+
+	let myData = []
+
+	onMount(() => {
+		myData = []
+		setTimeout(() => (myData = data), 2000);
+	});
+
+	const onPrintButtonClick = () => {
+		print();
+	};
 </script>
 
-<Chart.Container config={chartConfig}>
-	<LineChart
-		data={chartData}
-		x="time"
-		axis="x"
-		series={[
-			{
-				key: "position",
-				label: "Position",
-				color: chartConfig.position.color,
-			},
-			{
-				key: "torque",
-				label: "Torque",
-				color: chartConfig.torque.color,
-			},
-		]}
-		props={{
-			spline: { curve: curveLinear, strokeWidth: 2 },
-			highlight: { points: { r: 4 } },
-		}}
-	>
-		{#snippet tooltip()}
-			<Chart.Tooltip hideLabel />
-		{/snippet}
-	</LineChart>
-</Chart.Container>
+<div>
+	<div class="p-10" id="print-section">
+		<Chart.Container config={chartConfig} class="max-h-1/2">
+			<LineChart
+				data={myData}
+				x="callback_time"
+				axis="x"
+				series={[
+					{
+						key: "SMCmr_pos",
+						label: "Position",
+						color: chartConfig.position.color,
+					},
+				]}
+				yDomain={[-100, 100]}
+				props={{
+					spline: { curve: curveLinear, strokeWidth: 2 },
+					highlight: { points: { r: 4 } },
+				}}
+			>
+				{#snippet tooltip()}
+					<Chart.Tooltip hideLabel />
+				{/snippet}
+			</LineChart>
+		</Chart.Container>
+	</div>
+	<Button class="mx-10" onclick={onPrintButtonClick}>print</Button>
+</div>

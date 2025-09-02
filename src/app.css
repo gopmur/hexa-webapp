@@ -4,6 +4,24 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@media print {
+		body * {
+			visibility: hidden;
+		}
+
+		#print-section,
+		#print-section * {
+			visibility: visible;
+		}
+
+		#print-section {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+		}
+	}
+
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
