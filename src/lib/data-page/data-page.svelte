@@ -68,6 +68,29 @@
 		return data.map((value, index) => value - trend.predict(index)[1]);
 	};
 
+	const ptp = (data: number[]) => {
+		if (data.length == 0) {
+			throw Error("Data is empty");
+		}
+		const [max, min] = data.reduce(
+			(accumulator, val) => [
+				Math.max(accumulator[0], val),
+				Math.min(accumulator[1], val),
+			],
+			[-Infinity, Infinity],
+		);
+		return max - min;
+	};
+
+	const adaptivePeakDetection = (angles: number[], samplingRate: number) => {
+		const signalRange = ptp(angles);
+		const minProminenceDeg = 5;
+		const prominence = Math.max(minProminenceDeg, signalRange * 0.15);
+		const minDistSeconds = 0.5;
+		const distance = Math.floor(minDistSeconds * samplingRate);
+		const maxIndices =  
+	}
+
 	const analysisSingleSession = (data: GaitData, legLength: number) => {
 		let samplingRate: number;
 		({ data, samplingRate } = computeCallbackTime(data));
