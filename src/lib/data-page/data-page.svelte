@@ -82,7 +82,14 @@
 		"Stance Time (s)": number;
 	};
 
-	const getResultMean = (data: ResultType[]) => {
+	type SummaryType = ResultType & {
+		rightSummary: ResultType;
+		leftSummary: ResultType;
+		Cadence: number;
+		"Step Length (m)": number
+	};
+
+	const getResultAvg = (data: ResultType[]) => {
 		if (data.length == 0) {
 			throw Error("data shouldn't be empty");
 		}
@@ -170,9 +177,13 @@
 			return [null, null, null];
 		}
 
-		const leftSummary = getResultMean(leftResultData);
-		const rightSummary = getResultMean(rightResultData);
-		const summary = [leftSummary, rightSummary]; 
+		const leftSummary = getResultAvg(leftResultData);
+		const rightSummary = getResultAvg(rightResultData);
+		const summary = [leftSummary, rightSummary];
+		if (summary.length == 2) {
+			const totalSteps = resultData.length;
+			const totalTimeMinutes = (time[time.length - 1] - time[0]) / 60;
+		}
 	};
 
 	onMount(() => {
