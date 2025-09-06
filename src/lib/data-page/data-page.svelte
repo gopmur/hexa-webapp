@@ -2,6 +2,7 @@
 	import { onMount } from "svelte";
 	import { data } from "./data";
 	import regression from "regression";
+	import { findPeaks } from "$lib/scijs/scijs";
 
 	type GaitData = {
 		[key: string]: number[];
@@ -88,8 +89,14 @@
 		const prominence = Math.max(minProminenceDeg, signalRange * 0.15);
 		const minDistSeconds = 0.5;
 		const distance = Math.floor(minDistSeconds * samplingRate);
-		const maxIndices =  
-	}
+		const maxIndices = findPeaks(angles, prominence, distance);
+		const minIndices = findPeaks(
+			angles.map((val) => -val),
+			prominence,
+			distance,
+		);
+		return [maxIndices.sort(), minIndices.sort()];
+	};
 
 	const analysisSingleSession = (data: GaitData, legLength: number) => {
 		let samplingRate: number;
@@ -99,6 +106,15 @@
 		const leftPosRaw = data["SMCml_pos"];
 		const rightPosDetrended = detrend(rightPosRaw);
 		const leftPosDetrended = detrend(leftPosRaw);
+		const [rightMaxIdx, rightMinIdx] = adaptivePeakDetection(
+			rightPosDetrended,
+			samplingRate,
+		);
+		const [leftMaxIdx, leftMinIdx] = adaptivePeakDetection(
+			leftPosDetrended,
+			samplingRate,
+		);
+		const resultData = [];
 	};
 
 	onMount(() => {
