@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { data } from "./data";
-	import regression from "regression";
-	import { findPeaks } from "$lib/scijs/scijs";
+	import { detrend, findPeaks, ptp } from "$lib/scijs/scijs";
 
 	type GaitData = {
 		[key: string]: number[];
@@ -60,29 +59,6 @@
 		return { data, samplingRate };
 	};
 
-	const detrend = (data: number[]) => {
-		const dataPoints = data.map((value, index) => [
-			index,
-			value,
-		]) as regression.DataPoint[];
-		const trend = regression.linear(dataPoints);
-		return data.map((value, index) => value - trend.predict(index)[1]);
-	};
-
-	const ptp = (data: number[]) => {
-		if (data.length == 0) {
-			throw Error("Data is empty");
-		}
-		const [max, min] = data.reduce(
-			(accumulator, val) => [
-				Math.max(accumulator[0], val),
-				Math.min(accumulator[1], val),
-			],
-			[-Infinity, Infinity],
-		);
-		return max - min;
-	};
-
 	const adaptivePeakDetection = (angles: number[], samplingRate: number) => {
 		const signalRange = ptp(angles);
 		const minProminenceDeg = 5;
@@ -98,6 +74,38 @@
 		return [maxIndices.sort(), minIndices.sort()];
 	};
 
+	type ResultType = {
+		Leg: "Left" | "Right";
+		ROM: number;
+		"Stride Time (s)": number;
+		"Swing Time (s)": number;
+		"Stance Time (s)": number;
+	};
+
+	const getResultMean = (data: ResultType[]) => {
+		if (data.length == 0) {
+			throw Error("data shouldn't be empty");
+		}
+		const meanResult: ResultType = {
+			Leg: data[0].Leg,
+			ROM: 0,
+			"Stride Time (s)": 0,
+			"Swing Time (s)": 0,
+			"Stance Time (s)": 0,
+		};
+		for (const dataPoint of data) {
+			meanResult.ROM += dataPoint.ROM;
+			meanResult["Stance Time (s)"] += dataPoint["Stance Time (s)"];
+			meanResult["Swing Time (s)"] += dataPoint["Swing Time (s)"];
+			meanResult["Stance Time (s)"] += dataPoint["Stance Time (s)"];
+		}
+		meanResult.ROM /= data.length;
+		meanResult["Stance Time (s)"] /= data.length;
+		meanResult["Swing Time (s)"] /= data.length;
+		meanResult["Stance Time (s)"] /= data.length;
+		return meanResult;
+	};
+
 	const analysisSingleSession = (data: GaitData, legLength: number) => {
 		let samplingRate: number;
 		({ data, samplingRate } = computeCallbackTime(data));
@@ -106,7 +114,7 @@
 		const leftPosRaw = data["SMCml_pos"];
 		const rightPosDetrended = detrend(rightPosRaw);
 		const leftPosDetrended = detrend(leftPosRaw);
-		const [rightMaxIdx, rightMinIdx] = adaptivePeakDetection(
+		let [rightMaxIdx, rightMinIdx] = adaptivePeakDetection(
 			rightPosDetrended,
 			samplingRate,
 		);
@@ -114,7 +122,57 @@
 			leftPosDetrended,
 			samplingRate,
 		);
-		const resultData = [];
+		const rightResultData: ResultType[] = [];
+		for (let i = 0; i < rightMinIdx.length - 1; i++) {
+			const startIdx = rightMinIdx[i];
+			const endIdx = rightMinIdx[i + 1];
+			const peaksInStride = rightMaxIdx.filter(
+				(value) => value > startIdx && value < endIdx,
+			);
+			if (peaksInStride.length == 1) {
+				const peakIdx = peaksInStride[0];
+				const strideTime = time[endIdx] - time[startIdx];
+				const swingTime = time[endIdx] - time[peakIdx];
+				const stanceTime = time[peakIdx] - time[startIdx];
+				rightResultData.push({
+					Leg: "Right",
+					ROM: ptp(rightPosRaw.slice(startIdx, endIdx)),
+					"Stride Time (s)": strideTime,
+					"Swing Time (s)": swingTime,
+					"Stance Time (s)": stanceTime,
+				});
+			}
+		}
+		const leftResultData: ResultType[] = [];
+		for (let i = 0; i < leftMinIdx.length - 1; i++) {
+			const startIdx = leftMinIdx[i];
+			const endIdx = leftMinIdx[i + 1];
+			const peaksInStride = rightMaxIdx.filter(
+				(value) => value > startIdx && value < endIdx,
+			);
+			if (peaksInStride.length == 1) {
+				const peakIdx = peaksInStride[0];
+				const strideTime = time[endIdx] - time[startIdx];
+				const swingTime = time[endIdx] - time[peakIdx];
+				const stanceTime = time[peakIdx] - time[startIdx];
+				leftResultData.push({
+					Leg: "Left",
+					ROM: ptp(leftPosRaw.slice(startIdx, endIdx)),
+					"Stride Time (s)": strideTime,
+					"Swing Time (s)": swingTime,
+					"Stance Time (s)": stanceTime,
+				});
+			}
+		}
+		const resultData = leftResultData.concat(rightResultData);
+		if (resultData.length == 0) {
+			console.warn(`Warning: No valid steps detected for . Skipping.`);
+			return [null, null, null];
+		}
+
+		const leftSummary = getResultMean(leftResultData);
+		const rightSummary = getResultMean(rightResultData);
+		const summary = [leftSummary, rightSummary]; 
 	};
 
 	onMount(() => {

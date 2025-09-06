@@ -1,3 +1,5 @@
+import regression from "regression";
+
 const LocalMaxima1d = (x: number[]) => {
 	let midpoints = new Array<number>(Math.floor(x.length / 2));
 	let leftEdges = new Array<number>(Math.floor(x.length / 2));
@@ -153,4 +155,27 @@ export const findPeaks = (
 	keep = SelectByProperty(prominences, pmin);
 	peaks = filterSignalByConditions(peaks, keep);
 	return peaks;
+};
+
+export const detrend = (data: number[]) => {
+	const dataPoints = data.map((value, index) => [
+		index,
+		value,
+	]) as regression.DataPoint[];
+	const trend = regression.linear(dataPoints);
+	return data.map((value, index) => value - trend.predict(index)[1]);
+};
+
+export const ptp = (data: number[]) => {
+	if (data.length == 0) {
+		throw Error("Data is empty");
+	}
+	const [max, min] = data.reduce(
+		(accumulator, val) => [
+			Math.max(accumulator[0], val),
+			Math.min(accumulator[1], val),
+		],
+		[-Infinity, Infinity],
+	);
+	return max - min;
 };
