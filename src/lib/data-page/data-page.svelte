@@ -1,19 +1,51 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { data } from "./data";
+	import { data } from "./data.json";
 	import { detrend, findPeaks, ptp, radians } from "$lib/scijs/scijs";
+	import * as Table from "$lib/components/ui/table/index.js";
+	import { Progress } from "$lib/components/ui/progress/index.js";
+	import { Button } from "$lib/components/ui/button/index";
+
+	let progress = 0;
+	let loading = false;
+	let dataAvailable = false;
 
 	type GaitData = {
-		[key: string]: number[];
+		Date: string;
+		callback_time: number[];
+		SMCmr_pos: number[];
+		SMCmr_vel: number[];
+		SMCml_pos: number[];
+		SMCml_vel: number[];
 	};
 
-	let loading = true;
+	type ResultType = {
+		ROM: number;
+		"Stride Time (s)": number;
+		"Swing Time (s)": number;
+		"Stance Time (s)": number;
+	};
+
+	type SummaryType = {
+		rightSummary: ResultType;
+		leftSummary: ResultType;
+		Cadence: number;
+		"Step Length (m)": {
+			Left: number;
+			Right: number;
+		};
+		Symmetry: number;
+	};
+
+	type TableRowType = SummaryType & { Date: string };
+
+	const summary: SummaryType[] = [];
 
 	const diff = (data: number[]) => {
 		if (data.length <= 1) return [];
 		const diff = new Array<number>(data.length - 1);
 		for (let i = 0; i < data.length - 1; i++) {
-			diff[i] = data[i + 1] - data[i]; // correct forward diff
+			diff[i] = data[i + 1] - data[i];
 		}
 		return diff;
 	};
@@ -72,24 +104,6 @@
 			distance,
 		);
 		return [maxIndices.sort((a, b) => a - b), minIndices.sort((a, b) => a - b)];
-	};
-
-	type ResultType = {
-		ROM: number;
-		"Stride Time (s)": number;
-		"Swing Time (s)": number;
-		"Stance Time (s)": number;
-	};
-
-	type SummaryType = {
-		rightSummary: ResultType;
-		leftSummary: ResultType;
-		Cadence: number;
-		"Step Length (m)": {
-			Left: number;
-			Right: number;
-		};
-		Symmetry: number;
 	};
 
 	const getResultAvg = (data: ResultType[]) => {
@@ -178,7 +192,7 @@
 		const resultData = leftResultData.concat(rightResultData);
 		if (resultData.length == 0) {
 			console.warn(`Warning: No valid steps detected for . Skipping.`);
-			return [null, null, null];
+			return null;
 		}
 
 		const leftSummary = getResultAvg(leftResultData);
@@ -203,16 +217,153 @@
 		return summary;
 	};
 
-	onMount(() => {
+	function roundTo(num, decimals = 2) {
+		return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
+	}
+
+	const formatTableData = (tableData: TableRowType[]) => {
+		// rightSummary: ResultType;
+		// leftSummary: ResultType;
+		// Cadence: number;
+		// "Step Length (m)": {
+		// 	Left: number;
+		// 	Right: number;
+		// };
+		// Symmetry: number;
+		for (const row of tableData) {
+			row.rightSummary.ROM = roundTo(row.rightSummary.ROM);
+			row.rightSummary["Stride Time (s)"] = roundTo(
+				row.rightSummary["Stride Time (s)"],
+			);
+			row.rightSummary["Swing Time (s)"] = roundTo(
+				row.rightSummary["Swing Time (s)"],
+			);
+			row.rightSummary["Stance Time (s)"] = roundTo(
+				row.rightSummary["Stance Time (s)"],
+			);
+
+			row.leftSummary.ROM = roundTo(row.leftSummary.ROM);
+			row.leftSummary["Stride Time (s)"] = roundTo(
+				row.leftSummary["Stride Time (s)"],
+			);
+			row.leftSummary["Swing Time (s)"] = roundTo(
+				row.leftSummary["Swing Time (s)"],
+			);
+			row.leftSummary["Stance Time (s)"] = roundTo(
+				row.leftSummary["Stance Time (s)"],
+			);
+
+			row.Cadence = roundTo(row.Cadence);
+
+			row["Step Length (m)"].Left = roundTo(row["Step Length (m)"].Left);
+			row["Step Length (m)"].Right = roundTo(row["Step Length (m)"].Right);
+			row.Symmetry = roundTo(row.Symmetry);
+		}
+	};
+
+	const tableData: TableRowType[] = [];
+
+	const onPrintClick = async () => {
 		loading = true;
-		const sessionSummary = analysisSingleSession(
-			data,
-			0.9,
-			new Date(Date.now()),
-		);
-		console.log(sessionSummary)
+		dataAvailable = false;
+		const progressChunk = (1 / data.length) * 100;
+		progress = 0;
+		for (const sessionData of data) {
+			const sessionSummary = analysisSingleSession(
+				sessionData,
+				0.9,
+				new Date(sessionData.Date),
+			);
+			if (sessionSummary) {
+				summary.push(sessionSummary);
+				tableData.push({
+					...sessionSummary,
+					Date: sessionData.Date,
+				});
+			}
+			progress += progressChunk;
+		}
+		formatTableData(tableData);
+		progress = 100;
+		dataAvailable = true;
 		loading = false;
-	});
+	};
 </script>
 
-<div></div>
+<div>
+	<Button onclick={onPrintClick}>Print Data</Button>
+	{#if dataAvailable && !loading}
+		<table
+			class="border border-collapse border-gray-400 [&_td]:border [&_td]:border-gray-400 [&_td]:p-2 [&_td]:text-center"
+		>
+			<thead>
+				<tr>
+					<td>Session</td>
+					<td>Date Time</td>
+					<td>Leg</td>
+					<td>ROM (deg)</td>
+					<td>Stride Time (s)</td>
+					<td>Swing Time (s)</td>
+					<td>Stance Time (s)</td>
+					<td>Cadence (step/min)</td>
+					<td>Step Length (m)</td>
+					<td>Symmetry (%)</td>
+				</tr>
+			</thead>
+			<tbody>
+				{#each tableData as row, index}
+					<tr>
+						<td rowspan="2">
+							Session #{index + 1}
+						</td>
+						<td rowspan="2">
+							{row.Date}
+						</td>
+						<td> Left </td>
+						<td>
+							{row.leftSummary.ROM}
+						</td>
+						<td>
+							{row.leftSummary["Stride Time (s)"]}
+						</td>
+						<td>
+							{row.leftSummary["Swing Time (s)"]}
+						</td>
+						<td>
+							{row.leftSummary["Stance Time (s)"]}
+						</td>
+						<td rowspan="2">
+							{row.Cadence}
+						</td>
+						<td>
+							{row["Step Length (m)"].Left}
+						</td>
+						<td rowspan="2">
+							{row.Symmetry}
+						</td>
+					</tr>
+					<tr>
+						<td> Right </td>
+						<td>
+							{row.rightSummary.ROM}
+						</td>
+						<td>
+							{row.rightSummary["Stride Time (s)"]}
+						</td>
+						<td>
+							{row.rightSummary["Swing Time (s)"]}
+						</td>
+						<td>
+							{row.rightSummary["Stance Time (s)"]}
+						</td>
+						<td>
+							{row["Step Length (m)"].Right}
+						</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	{:else if loading}
+		<Progress value={progress} />
+	{/if}
+</div>
