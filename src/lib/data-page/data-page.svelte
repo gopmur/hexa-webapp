@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { data } from "./data";
-	import { detrend, findPeaks, ptp } from "$lib/scijs/scijs";
+	import { detrend, findPeaks, ptp, radians } from "$lib/scijs/scijs";
 
 	type GaitData = {
 		[key: string]: number[];
@@ -13,7 +13,7 @@
 		if (data.length <= 1) return [];
 		const diff = new Array<number>(data.length - 1);
 		for (let i = 0; i < data.length - 1; i++) {
-			diff[i] = Math.abs(data[i] - data[i - 1]);
+			diff[i] = data[i + 1] - data[i]; // correct forward diff
 		}
 		return diff;
 	};
@@ -75,18 +75,21 @@
 	};
 
 	type ResultType = {
-		Leg: "Left" | "Right";
 		ROM: number;
 		"Stride Time (s)": number;
 		"Swing Time (s)": number;
 		"Stance Time (s)": number;
 	};
 
-	type SummaryType = ResultType & {
+	type SummaryType = {
 		rightSummary: ResultType;
 		leftSummary: ResultType;
 		Cadence: number;
-		"Step Length (m)": number
+		"Step Length (m)": {
+			Left: number;
+			Right: number;
+		};
+		Symmetry: number;
 	};
 
 	const getResultAvg = (data: ResultType[]) => {
@@ -94,7 +97,6 @@
 			throw Error("data shouldn't be empty");
 		}
 		const meanResult: ResultType = {
-			Leg: data[0].Leg,
 			ROM: 0,
 			"Stride Time (s)": 0,
 			"Swing Time (s)": 0,
@@ -104,16 +106,20 @@
 			meanResult.ROM += dataPoint.ROM;
 			meanResult["Stance Time (s)"] += dataPoint["Stance Time (s)"];
 			meanResult["Swing Time (s)"] += dataPoint["Swing Time (s)"];
-			meanResult["Stance Time (s)"] += dataPoint["Stance Time (s)"];
+			meanResult["Stride Time (s)"] += dataPoint["Stride Time (s)"];
 		}
 		meanResult.ROM /= data.length;
 		meanResult["Stance Time (s)"] /= data.length;
 		meanResult["Swing Time (s)"] /= data.length;
-		meanResult["Stance Time (s)"] /= data.length;
+		meanResult["Stride Time (s)"] /= data.length;
 		return meanResult;
 	};
 
-	const analysisSingleSession = (data: GaitData, legLength: number) => {
+	const analysisSingleSession = (
+		data: GaitData,
+		legLength: number,
+		sessionDate: Date,
+	) => {
 		let samplingRate: number;
 		({ data, samplingRate } = computeCallbackTime(data));
 		const time = data["callback_time"];
@@ -142,7 +148,6 @@
 				const swingTime = time[endIdx] - time[peakIdx];
 				const stanceTime = time[peakIdx] - time[startIdx];
 				rightResultData.push({
-					Leg: "Right",
 					ROM: ptp(rightPosRaw.slice(startIdx, endIdx)),
 					"Stride Time (s)": strideTime,
 					"Swing Time (s)": swingTime,
@@ -154,7 +159,7 @@
 		for (let i = 0; i < leftMinIdx.length - 1; i++) {
 			const startIdx = leftMinIdx[i];
 			const endIdx = leftMinIdx[i + 1];
-			const peaksInStride = rightMaxIdx.filter(
+			const peaksInStride = leftMaxIdx.filter(
 				(value) => value > startIdx && value < endIdx,
 			);
 			if (peaksInStride.length == 1) {
@@ -163,7 +168,6 @@
 				const swingTime = time[endIdx] - time[peakIdx];
 				const stanceTime = time[peakIdx] - time[startIdx];
 				leftResultData.push({
-					Leg: "Left",
 					ROM: ptp(leftPosRaw.slice(startIdx, endIdx)),
 					"Stride Time (s)": strideTime,
 					"Swing Time (s)": swingTime,
@@ -179,16 +183,34 @@
 
 		const leftSummary = getResultAvg(leftResultData);
 		const rightSummary = getResultAvg(rightResultData);
-		const summary = [leftSummary, rightSummary];
-		if (summary.length == 2) {
-			const totalSteps = resultData.length;
-			const totalTimeMinutes = (time[time.length - 1] - time[0]) / 60;
-		}
+
+		const totalSteps = resultData.length;
+		const totalTimeMinutes = (time[time.length - 1] - time[0]) / 60;
+		const summary: SummaryType = {
+			leftSummary,
+			rightSummary,
+			"Step Length (m)": {
+				Left: legLength * radians(leftSummary.ROM),
+				Right: legLength * radians(rightSummary.ROM),
+			},
+			Symmetry:
+				(1 -
+					Math.abs(rightSummary.ROM - leftSummary.ROM) /
+						(0.5 * (rightSummary.ROM + leftSummary.ROM))) *
+				100,
+			Cadence: totalTimeMinutes > 0 ? totalSteps / totalTimeMinutes : 0,
+		};
+		return summary;
 	};
 
 	onMount(() => {
 		loading = true;
-
+		const sessionSummary = analysisSingleSession(
+			data,
+			0.9,
+			new Date(Date.now()),
+		);
+		console.log(sessionSummary);
 		loading = false;
 	});
 </script>

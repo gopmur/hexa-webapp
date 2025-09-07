@@ -179,3 +179,5 @@ export const ptp = (data: number[]) => {
 	);
 	return max - min;
 };
+
+export const radians = (angle: number) => (angle * Math.PI) / 180;
