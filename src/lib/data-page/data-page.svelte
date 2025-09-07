@@ -71,7 +71,7 @@
 			prominence,
 			distance,
 		);
-		return [maxIndices.sort(), minIndices.sort()];
+		return [maxIndices.sort((a, b) => a - b), minIndices.sort((a, b) => a - b)];
 	};
 
 	type ResultType = {
@@ -210,7 +210,7 @@
 			0.9,
 			new Date(Date.now()),
 		);
-		console.log(sessionSummary);
+		console.log(sessionSummary)
 		loading = false;
 	});
 </script>
