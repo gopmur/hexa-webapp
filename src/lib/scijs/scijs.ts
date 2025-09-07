@@ -181,3 +181,35 @@ export const ptp = (data: number[]) => {
 };
 
 export const radians = (angle: number) => (angle * Math.PI) / 180;
+
+export const diff = (data: number[]) => {
+	if (data.length <= 1) return [];
+	const diff = new Array<number>(data.length - 1);
+	for (let i = 0; i < data.length - 1; i++) {
+		diff[i] = data[i + 1] - data[i];
+	}
+	return diff;
+};
+
+export const mean = (data: number[]) => {
+	const sum = data.reduce(
+		(prevValue, currentValue) => currentValue + prevValue,
+		0,
+	);
+	return sum / data.length;
+};
+
+export const arange = (start: number, stop: number, step: number = 1) => {
+	if (step === 0) throw new Error("Step cannot be zero.");
+	const result: number[] = [];
+	if (step > 0) {
+		for (let i = start; i < stop; i += step) {
+			result.push(i);
+		}
+	} else {
+		for (let i = start; i > stop; i += step) {
+			result.push(i);
+		}
+	}
+	return result;
+};
