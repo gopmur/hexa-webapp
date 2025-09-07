@@ -5,6 +5,11 @@
 	import * as Table from "$lib/components/ui/table/index.js";
 	import { Progress } from "$lib/components/ui/progress/index.js";
 	import { Button } from "$lib/components/ui/button/index";
+	import { LineChart } from "layerchart";
+	import TrendingUpIcon from "@lucide/svelte/icons/trending-up";
+	import { scaleUtc } from "d3-scale";
+	import { curveLinear } from "d3-shape";
+	import * as Chart from "$lib/components/ui/chart/index.js";
 
 	let progress = 0;
 	let loading = false;
@@ -37,9 +42,26 @@
 		Symmetry: number;
 	};
 
+	type ChartData = {
+		rightROM: number;
+		rightStrideTime: number;
+		rightSwingTime: number;
+		rightStanceTime: number;
+		rightStepLength: number;
+		leftROM: number;
+		leftStrideTime: number;
+		leftSwingTime: number;
+		leftStanceTime: number;
+		leftStepLength: number;
+		Cadence: number;
+		Symmetry: number;
+		Date: Date;
+	};
+
 	type TableRowType = SummaryType & { Date: string };
 
 	const summary: SummaryType[] = [];
+	let chartData: ChartData[] = [];
 
 	const diff = (data: number[]) => {
 		if (data.length <= 1) return [];
@@ -217,9 +239,31 @@
 		return summary;
 	};
 
-	function roundTo(num, decimals = 2) {
+	function roundTo(num: number, decimals = 2) {
 		return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
 	}
+
+	const makeChartData = (tableData: TableRowType[]) => {
+		const chartData: ChartData[] = [];
+		for (const row of tableData) {
+			chartData.push({
+				Cadence: row.Cadence,
+				leftROM: row.leftSummary.ROM,
+				leftStrideTime: row.leftSummary["Stride Time (s)"],
+				leftStanceTime: row.leftSummary["Stance Time (s)"],
+				leftSwingTime: row.leftSummary["Swing Time (s)"],
+				leftStepLength: row["Step Length (m)"].Left,
+				rightROM: row.rightSummary.ROM,
+				rightStrideTime: row.rightSummary["Stride Time (s)"],
+				rightStanceTime: row.rightSummary["Stance Time (s)"],
+				rightSwingTime: row.rightSummary["Swing Time (s)"],
+				rightStepLength: row["Step Length (m)"].Right,
+				Symmetry: row.Symmetry,
+				Date: new Date(row.Date),
+			});
+		}
+		return chartData;
+	};
 
 	const formatTableData = (tableData: TableRowType[]) => {
 		// rightSummary: ResultType;
@@ -284,10 +328,18 @@
 			progress += progressChunk;
 		}
 		formatTableData(tableData);
+		tableData.sort(
+			(a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime(),
+		);
+		chartData = makeChartData(tableData);
 		progress = 100;
 		dataAvailable = true;
 		loading = false;
 	};
+
+	const chartConfig = {
+		desktop: { label: "Desktop", color: "var(--chart-1)" },
+	} satisfies Chart.ChartConfig;
 </script>
 
 <div>
@@ -363,6 +415,35 @@
 				{/each}
 			</tbody>
 		</table>
+		<div class="w-1/2">
+			<Chart.Container config={chartConfig}>
+				<LineChart
+					data={chartData}
+					x="Date"
+					xScale={scaleUtc()}
+					axis="x"
+					series={[
+						{
+							key: "Cadence",
+							label: "Cadence",
+							color: chartConfig.desktop.color,
+						},
+					]}
+					props={{
+						spline: { curve: curveLinear, motion: "tween", strokeWidth: 2 },
+						xAxis: {
+							format: (v: Date) =>
+								v.toLocaleDateString("en-US", { month: "short" }),
+						},
+						highlight: { points: { r: 4 } },
+					}}
+				>
+					{#snippet tooltip()}
+						<Chart.Tooltip hideLabel />
+					{/snippet}
+				</LineChart>
+			</Chart.Container>
+		</div>
 	{:else if loading}
 		<Progress value={progress} />
 	{/if}
