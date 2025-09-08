@@ -5,7 +5,7 @@
 	import ChartIcon from "@lucide/svelte/icons/chart-spline";
 	import UserRoundCogIcon from "@lucide/svelte/icons/user-round-cog";
 	import FileTextIcon from "@lucide/svelte/icons/file-text";
-	import DataPage from "$lib/gait-analysis-page/gait-analysis-page.svelte";
+	import GaitAnalysisPage from "$lib/gait-analysis-page/gait-analysis-page.svelte";
 </script>
 
 <main class="h-dvh w-screen flex flex-col">
@@ -16,12 +16,12 @@
 	>
 		<Tabs.Content value="settings" class="flex-1 overflow-scroll"
 		></Tabs.Content>
-		<Tabs.Content value="data" class="flex-1 overflow-scroll">
-			<DataPage />
-		</Tabs.Content>
+		<Tabs.Content value="data" class="flex-1 overflow-scroll"></Tabs.Content>
 		<Tabs.Content value="patients" class="flex-1 overflow-scroll"
 		></Tabs.Content>
-		<Tabs.Content value="report" class="flex-1 overflow-scroll"></Tabs.Content>
+		<Tabs.Content value="report" class="flex-1 overflow-scroll">
+			<GaitAnalysisPage />
+		</Tabs.Content>
 
 		<Tabs.List class="w-full rounded-none h-20">
 			<Tabs.Trigger class="flex flex-col" value="settings">
