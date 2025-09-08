@@ -12,7 +12,7 @@
 	<Header />
 	<Tabs.Root
 		value="settings"
-		class="flex-1 flex flex-col overflow-hidden gap-0"
+		class="flex-1 flex flex-col overflow-y-hidden gap-0"
 	>
 		<Tabs.Content value="settings" class="flex-1 overflow-scroll"
 		></Tabs.Content>

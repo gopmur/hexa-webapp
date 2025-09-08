@@ -170,7 +170,7 @@ export const makeTableData = (summary: SummaryType[]) => {
 	for (const row of summary) {
 		tableData.push({
 			cadence: row.cadence.toFixed(2),
-			date: row.date.toString(),
+			date: row.date.toLocaleString(),
 			leftRom: row.leftLegSummary.rom.toFixed(2),
 			leftStanceTime: row.leftLegSummary.stanceTime.toFixed(2),
 			leftStepLength: row.leftStepLength.toFixed(2),
@@ -218,7 +218,7 @@ export const analyzeSessions = (data: GaitData[], legLength: number) => {
 	for (const sessionData of data) {
 		const sessionSummary = analysisSingleSession(
 			sessionData,
-			0.9,
+			legLength,
 			new Date(sessionData.Date),
 		);
 		if (sessionSummary) {

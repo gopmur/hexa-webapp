@@ -31,11 +31,15 @@
 	};
 </script>
 
-<div class="max-w">
-	<Button onclick={onPrintClick}>Print Data</Button>
+<div class="p-4 gap-4 flex flex-col">
+	<div>
+		<Button onclick={onPrintClick}>Analyze Data</Button>
+	</div>
 	{#if dataAvailable && !loading}
-		<div class="p-10">
-			<GaitAnalysisTable data={tableData} />
+		<div>
+			<div class="overflow-x-auto">
+				<GaitAnalysisTable data={tableData} class="min-w-[800px]" />
+			</div>
 			<GaitAnalysisPageCharts data={chartData} />
 		</div>
 	{/if}
