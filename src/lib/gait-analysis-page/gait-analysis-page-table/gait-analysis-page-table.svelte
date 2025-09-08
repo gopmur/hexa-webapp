@@ -1,10 +1,12 @@
 <script lang="ts">
-	import type { GaitAnalysisPageTablePropsType } from "./gait-analysis-page-table.type";
+	import type { TableRowType } from "./gait-analysis-page-table.type";
 
-	const { data }: GaitAnalysisPageTablePropsType = $props();
+	export let data: TableRowType[] = [];
+	let className = '';
+	export {className as class}
 </script>
 
-<div>
+<div class={className}>
 	<table
 		class="border border-collapse border-gray-400 [&_td]:border [&_td]:border-gray-400 [&_td]:p-2 [&_td]:text-center"
 	>

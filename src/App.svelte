@@ -8,36 +8,39 @@
 	import DataPage from "$lib/gait-analysis-page/gait-analysis-page.svelte";
 </script>
 
-<main class="h-dvh w-screen">
-	<div class="flex flex-col h-full w-full justify-between">
-		<Header />
-		<Tabs.Root value="settings" class="w-screen h-full">
-			<Tabs.Content value="settings" class="h-full"
-				><div class="h-full"></div></Tabs.Content
-			>
-			<Tabs.Content value="data"
-				><div class="h-full">
-					<DataPage />
-				</div></Tabs.Content
-			>
-			<Tabs.Content value="patients"><div class="h-full"></div></Tabs.Content>
-			<Tabs.Content value="report"><div class="h-full"></div></Tabs.Content>
-			<Tabs.List class="w-full rounded-none h-20">
-				<Tabs.Trigger class="flex flex-col" value="settings"
-					><SettingsIcon class="size-6" /> Settings</Tabs.Trigger
-				>
-				<Tabs.Trigger class="flex flex-col" value="data"
-					><ChartIcon class="size-6" /> Data</Tabs.Trigger
-				>
-				<Tabs.Trigger class="flex flex-col" value="patients"
-					><UserRoundCogIcon class="size-6" /> Patients</Tabs.Trigger
-				>
-				<Tabs.Trigger class="flex flex-col" value="report"
-					><FileTextIcon class="size-6" /> Report</Tabs.Trigger
-				>
-			</Tabs.List>
-		</Tabs.Root>
-	</div>
+<main class="h-dvh w-screen flex flex-col">
+	<Header />
+	<Tabs.Root value="settings" class="flex-1 flex flex-col overflow-hidden gap-0">
+		<Tabs.Content value="settings"
+		>a</Tabs.Content>
+		<Tabs.Content value="data" class="flex-1 overflow-scroll">
+			<div class="flex-1">
+				<DataPage />
+			</div>
+		</Tabs.Content>
+		<Tabs.Content value="patients" class="h-full">
+			<div class="h-full"></div>
+		</Tabs.Content>
+		<Tabs.Content value="report" class="h-full">
+			<div class="h-full"></div>
+		</Tabs.Content>
+
+		<!-- Tabs list stays fixed at bottom -->
+		<Tabs.List class="w-full rounded-none h-20">
+			<Tabs.Trigger class="flex flex-col" value="settings">
+				<SettingsIcon class="size-6" /> Settings
+			</Tabs.Trigger>
+			<Tabs.Trigger class="flex flex-col" value="data">
+				<ChartIcon class="size-6" /> Data
+			</Tabs.Trigger>
+			<Tabs.Trigger class="flex flex-col" value="patients">
+				<UserRoundCogIcon class="size-6" /> Patients
+			</Tabs.Trigger>
+			<Tabs.Trigger class="flex flex-col" value="report">
+				<FileTextIcon class="size-6" /> Report
+			</Tabs.Trigger>
+		</Tabs.List>
+	</Tabs.Root>
 </main>
 
 <style>

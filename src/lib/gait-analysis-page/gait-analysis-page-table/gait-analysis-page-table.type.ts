@@ -13,7 +13,3 @@ export type TableRowType = {
 	symmetry: string;
 	date: string;
 };
-
-export type GaitAnalysisPageTablePropsType = {
-	data: TableRowType[];
-};

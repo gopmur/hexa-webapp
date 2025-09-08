@@ -9,11 +9,11 @@ import {
 } from "$lib/scijs/scijs";
 import type { TableRowType } from "./gait-analysis-page-table/gait-analysis-page-table.type";
 import type {
-	ChartDataType,
 	GaitData,
 	LegSummaryType,
 	SummaryType,
-} from "./gait-analysis-page.types";
+} from "./gait-analysis-page";
+import type { ChartDataType } from "./gait-analysis-page-charts/gait-analysis-page-charts";
 
 export const computeCallbackTime = (data: GaitData, samplingRate = 100) => {
 	const callbackTimeMeanDiff = mean(diff(data["callback_time"]));
@@ -165,28 +165,6 @@ function roundTo(num: number, decimals = 2) {
 	return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
 }
 
-// const makeChartData = (tableData: TableRowType[]) => {
-// 	const chartData: ChartData[] = [];
-// 	for (const row of tableData) {
-// 		chartData.push({
-// 			Cadence: row.cadence,
-// 			leftROM: row.leftSummary.ROM,
-// 			leftStrideTime: row.leftSummary["Stride Time (s)"],
-// 			leftStanceTime: row.leftSummary["Stance Time (s)"],
-// 			leftSwingTime: row.leftSummary["Swing Time (s)"],
-// 			leftStepLength: row["Step Length (m)"].left,
-// 			rightROM: row.rightSummary.ROM,
-// 			rightStrideTime: row.rightSummary["Stride Time (s)"],
-// 			rightStanceTime: row.rightSummary["Stance Time (s)"],
-// 			rightSwingTime: row.rightSummary["Swing Time (s)"],
-// 			rightStepLength: row["Step Length (m)"].right,
-// 			Symmetry: row.symmetry,
-// 			Date: new Date(row.Date),
-// 		});
-// 	}
-// 	return chartData;
-// };
-
 export const makeTableData = (summary: SummaryType[]) => {
 	const tableData: TableRowType[] = [];
 	for (const row of summary) {
@@ -210,4 +188,42 @@ export const makeTableData = (summary: SummaryType[]) => {
 		(a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
 	);
 	return tableData;
+};
+
+export const makeChartData = (summary: SummaryType[]) => {
+	const chartData: ChartDataType[] = [];
+	for (const row of summary) {
+		chartData.push({
+			cadence: row.cadence,
+			date: row.date,
+			leftRom: row.leftLegSummary.rom,
+			leftStanceTime: row.leftLegSummary.stanceTime,
+			leftStepLength: row.leftStepLength,
+			leftStrideTime: row.leftLegSummary.strideTime,
+			leftSwingTime: row.leftLegSummary.swingTime,
+			rightRom: row.rightLegSummary.rom,
+			rightStanceTime: row.rightLegSummary.stanceTime,
+			rightStepLength: row.rightStepLength,
+			rightStrideTime: row.rightLegSummary.strideTime,
+			rightSwingTime: row.rightLegSummary.swingTime,
+			symmetry: row.symmetry,
+		});
+	}
+	chartData.sort((a, b) => a.date.getTime() - b.date.getTime());
+	return chartData;
+};
+
+export const analyzeSessions = (data: GaitData[], legLength: number) => {
+	const summary: SummaryType[] = [];
+	for (const sessionData of data) {
+		const sessionSummary = analysisSingleSession(
+			sessionData,
+			0.9,
+			new Date(sessionData.Date),
+		);
+		if (sessionSummary) {
+			summary.push(sessionSummary);
+		}
+	}
+	return summary;
 };
