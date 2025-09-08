@@ -10,22 +10,19 @@
 
 <main class="h-dvh w-screen flex flex-col">
 	<Header />
-	<Tabs.Root value="settings" class="flex-1 flex flex-col overflow-hidden gap-0">
-		<Tabs.Content value="settings"
-		>a</Tabs.Content>
+	<Tabs.Root
+		value="settings"
+		class="flex-1 flex flex-col overflow-hidden gap-0"
+	>
+		<Tabs.Content value="settings" class="flex-1 overflow-scroll"
+		></Tabs.Content>
 		<Tabs.Content value="data" class="flex-1 overflow-scroll">
-			<div class="flex-1">
-				<DataPage />
-			</div>
+			<DataPage />
 		</Tabs.Content>
-		<Tabs.Content value="patients" class="h-full">
-			<div class="h-full"></div>
-		</Tabs.Content>
-		<Tabs.Content value="report" class="h-full">
-			<div class="h-full"></div>
-		</Tabs.Content>
+		<Tabs.Content value="patients" class="flex-1 overflow-scroll"
+		></Tabs.Content>
+		<Tabs.Content value="report" class="flex-1 overflow-scroll"></Tabs.Content>
 
-		<!-- Tabs list stays fixed at bottom -->
 		<Tabs.List class="w-full rounded-none h-20">
 			<Tabs.Trigger class="flex flex-col" value="settings">
 				<SettingsIcon class="size-6" /> Settings

@@ -34,8 +34,8 @@
 <div class="max-w">
 	<Button onclick={onPrintClick}>Print Data</Button>
 	{#if dataAvailable && !loading}
-	<div class="p-10 overflow-clip">
-				<GaitAnalysisTable data={tableData} />
+		<div class="p-10">
+			<GaitAnalysisTable data={tableData} />
 			<GaitAnalysisPageCharts data={chartData} />
 		</div>
 	{/if}
