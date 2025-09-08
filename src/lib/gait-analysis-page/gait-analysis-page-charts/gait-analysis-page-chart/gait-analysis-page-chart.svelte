@@ -14,9 +14,11 @@
 
 	export let data: GaitAnalysisPageChartRecordType[];
 	export let series: GaitAnalysisPageChartSeriesType[];
+	let className = "";
+	export { className as class };
 </script>
 
-<Chart.Container config={chartConfig}>
+<Chart.Container config={chartConfig} class={className}>
 	<LineChart
 		{data}
 		x="date"
