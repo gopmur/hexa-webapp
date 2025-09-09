@@ -7,6 +7,7 @@
 		GaitAnalysisPageChartRecordType,
 		GaitAnalysisPageChartSeriesType,
 	} from "./gait-analysis-page-chart";
+	import { cn } from "$lib/utils";
 
 	const chartConfig = {
 		desktop: { label: "Desktop", color: "var(--chart-1)" },
@@ -18,7 +19,7 @@
 	export { className as class };
 </script>
 
-<Chart.Container config={chartConfig} class={className}>
+<Chart.Container config={chartConfig} class={cn(className)}>
 	<LineChart
 		{data}
 		x="date"

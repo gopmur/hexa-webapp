@@ -2,7 +2,9 @@
 	import GaitAnalysisPageChart from "./gait-analysis-page-chart/gait-analysis-page-chart.svelte";
 	import type { ChartDataType } from "./gait-analysis-page-charts";
 
-	export let data: ChartDataType[];
+	export let data: ChartDataType[] = [];
+	let className = "";
+	export { className as class };
 
 	const series = [
 		[
@@ -82,6 +84,8 @@
 	];
 </script>
 
-{#each series as graphSeries}
-	<GaitAnalysisPageChart series={graphSeries} {data} />
-{/each}
+<div class={className}>
+	{#each series as graphSeries}
+		<GaitAnalysisPageChart series={graphSeries} {data} />
+	{/each}
+</div>

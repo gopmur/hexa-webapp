@@ -1,11 +1,11 @@
 <script lang="ts">
-	import Header from "$lib/header/header.svelte";
+	import Header from "$src/header/header.svelte";
 	import * as Tabs from "$lib/components/ui/tabs";
 	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import ChartIcon from "@lucide/svelte/icons/chart-spline";
 	import UserRoundCogIcon from "@lucide/svelte/icons/user-round-cog";
 	import FileTextIcon from "@lucide/svelte/icons/file-text";
-	import GaitAnalysisPage from "$lib/gait-analysis-page/gait-analysis-page.svelte";
+	import GaitAnalysisPage from "$src/gait-analysis-page/gait-analysis-page.svelte";
 </script>
 
 <main class="h-dvh w-screen flex flex-col">

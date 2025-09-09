@@ -32,13 +32,14 @@
 </script>
 
 <div class="p-4 gap-4 flex flex-col">
-	<div>
+	<div class="flex gap-4">
 		<Button onclick={onPrintClick}>Analyze Data</Button>
+		<Button onclick={() => print()}>Download PDF</Button>
 	</div>
 	{#if dataAvailable && !loading}
-		<div>
+		<div id="print-section">
 			<div class="overflow-x-auto">
-				<GaitAnalysisTable data={tableData} class="min-w-[800px]" />
+				<GaitAnalysisTable data={tableData} />
 			</div>
 			<GaitAnalysisPageCharts data={chartData} />
 		</div>
