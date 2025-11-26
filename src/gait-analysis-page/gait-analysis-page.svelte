@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { data } from "./data.json";
+	// import { data } from "./data.json";
 	import { Button } from "$lib/components/ui/button/index";
-
+	data = {}
 	import type { SummaryType } from "./gait-analysis-page";
 	import {
 		analyzeSessions,
