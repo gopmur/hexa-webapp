@@ -1,8 +1,7 @@
 <script lang="ts">
 	// import { data } from "./data.json";
 	import { Button } from "$lib/components/ui/button/index";
-	data = {}
-	import type { SummaryType } from "./gait-analysis-page";
+	import type { GaitData, SummaryType } from "./gait-analysis-page";
 	import {
 		analyzeSessions,
 		makeChartData,
@@ -12,7 +11,8 @@
 	import GaitAnalysisTable from "./gait-analysis-page-table/gait-analysis-page-table.svelte";
 	import GaitAnalysisPageCharts from "./gait-analysis-page-charts/gait-analysis-page-charts.svelte";
 	import type { ChartDataType } from "./gait-analysis-page-charts/gait-analysis-page-charts";
-
+	
+	let data: GaitData[] = [];
 	let loading = false;
 	let dataAvailable = false;
 
