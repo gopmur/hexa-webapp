@@ -6,6 +6,7 @@
 	import UserRoundCogIcon from "@lucide/svelte/icons/user-round-cog";
 	import FileTextIcon from "@lucide/svelte/icons/file-text";
 	import GaitAnalysisPage from "$src/gait-analysis-page/gait-analysis-page.svelte";
+	import SettingsPage from "./settings-page/settings-page.svelte";
 </script>
 
 <main class="h-dvh w-screen flex flex-col">
@@ -14,8 +15,9 @@
 		value="settings"
 		class="flex-1 flex flex-col overflow-y-hidden gap-0"
 	>
-		<Tabs.Content value="settings" class="flex-1 overflow-scroll"
-		></Tabs.Content>
+		<Tabs.Content value="settings" class="flex-1 overflow-scroll">
+			<SettingsPage />
+		</Tabs.Content>
 		<Tabs.Content value="data" class="flex-1 overflow-scroll"></Tabs.Content>
 		<Tabs.Content value="patients" class="flex-1 overflow-scroll"
 		></Tabs.Content>
