@@ -10,8 +10,8 @@
 
 	const onPowerClick = async () => {
 		running = !running;
-		if (running) await fetch("/api/on");
-		else await fetch("/api/off");
+		if (running) await fetch("/api/start");
+		else await fetch("/api/stop");
 	};
 
 	const onModeChange = async (value: string) => {
