@@ -5,6 +5,7 @@
 	let leftSliderValue = 50;
 	let rightSliderValue = 50;
 	import Slider from "$lib/components/ui/slider/slider.svelte";
+	import { debounce } from "$lib/utils";
 
 	let running = false;
 
@@ -19,11 +20,27 @@
 	};
 
 	const onLeftSliderValueChange = async (value: number) => {
-
-	}
+		await fetch("api/left_torque", {
+			method: "PUT",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				torque: value,
+			}),
+		});
+	};
 	const onRightSliderValueChange = async (value: number) => {
-		
-	}
+		await fetch("api/right_torque", {
+			method: "PUT",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				torque: value,
+			}),
+		});
+	};
 </script>
 
 <div class="w-full h-full flex flex-col items-center">
@@ -48,16 +65,16 @@
 						step={1}
 						orientation="vertical"
 						class="max-w-[70%]"
-						onValueChange={onLeftSliderValueChange}
-						/>
-						<Slider
+						onValueChange={debounce(onLeftSliderValueChange, 100)}
+					/>
+					<Slider
 						type="single"
 						bind:value={rightSliderValue}
 						max={100}
 						step={1}
 						orientation="vertical"
 						class="max-w-[70%]"
-						onValueChange={onRightSliderValueChange}
+						onValueChange={debounce(onRightSliderValueChange, 100)}
 					/>
 				</div>
 			</div>
