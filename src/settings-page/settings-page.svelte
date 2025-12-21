@@ -33,7 +33,7 @@
 			<Tabs.Trigger class="flex flex-col" value="automatic"
 				>Automatic</Tabs.Trigger
 			>
-			<Tabs.Trigger class="flex flex-col" value="sem-automatic">
+			<Tabs.Trigger class="flex flex-col" value="semi-automatic">
 				Sem-Automatic
 			</Tabs.Trigger>
 			<Tabs.Trigger class="flex flex-col" value="smart">Smart</Tabs.Trigger>
