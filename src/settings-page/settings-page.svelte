@@ -15,8 +15,15 @@
 	};
 
 	const onModeChange = async (value: string) => {
-		await fetch(`/api/set-mode/string`);
+		await fetch(`/api/set-mode/${value}`);
 	};
+
+	const onLeftSliderValueChange = async (value: number) => {
+
+	}
+	const onRightSliderValueChange = async (value: number) => {
+		
+	}
 </script>
 
 <div class="w-full h-full flex flex-col items-center">
@@ -41,14 +48,16 @@
 						step={1}
 						orientation="vertical"
 						class="max-w-[70%]"
-					/>
-					<Slider
+						onValueChange={onLeftSliderValueChange}
+						/>
+						<Slider
 						type="single"
 						bind:value={rightSliderValue}
 						max={100}
 						step={1}
 						orientation="vertical"
 						class="max-w-[70%]"
+						onValueChange={onRightSliderValueChange}
 					/>
 				</div>
 			</div>
