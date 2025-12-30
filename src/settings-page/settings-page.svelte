@@ -15,8 +15,6 @@
 		console.log(responseData);
 	};
 
-	getRunningFromApi();
-
 	const loadStates = async () => {};
 
 	const onPowerClick = async () => {
@@ -27,6 +25,7 @@
 
 	const onModeChange = async (value: string) => {
 		await fetch(`/api/set-mode/${value}`, { method: "PUT" });
+		getRunningFromApi();
 	};
 
 	const onLeftSliderValueChange = async (value: number) => {
