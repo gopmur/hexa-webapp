@@ -2,21 +2,31 @@
 	import Button from "$lib/components/ui/button/button.svelte";
 	import { PowerIcon } from "lucide-svelte";
 	import * as Tabs from "$lib/components/ui/tabs";
-	let leftSliderValue = 50;
-	let rightSliderValue = 50;
 	import Slider from "$lib/components/ui/slider/slider.svelte";
 	import { debounce } from "$lib/utils";
 
+	let rightSliderValue = 50;
+	let leftSliderValue = 50;
 	let running = false;
+
+	const getRunningFromApi = async () => {
+		const response = await fetch("/api/running");
+		const responseData = await response.json();
+		console.log(responseData);
+	};
+
+	getRunningFromApi();
+
+	const loadStates = async () => {};
 
 	const onPowerClick = async () => {
 		running = !running;
-		if (running) await fetch("/api/start");
+		if (running) await fetch("/api/start", { method: "PUT" });
 		else await fetch("/api/stop");
 	};
 
 	const onModeChange = async (value: string) => {
-		await fetch(`/api/set-mode/${value}`);
+		await fetch(`/api/set-mode/${value}`, { method: "PUT" });
 	};
 
 	const onLeftSliderValueChange = async (value: number) => {
