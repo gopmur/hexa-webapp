@@ -22,7 +22,7 @@
 	const onPowerClick = async () => {
 		running = !running;
 		if (running) await fetch("/api/start", { method: "PUT" });
-		else await fetch("/api/stop");
+		else await fetch("/api/stop", { method: "PUT" });
 	};
 
 	const onModeChange = async (value: string) => {
