@@ -1,4 +1,5 @@
 src/lib/gait-analysis-page/data.json
+src/config.ts
 
 # Logs
 logs
