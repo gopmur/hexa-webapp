@@ -4,7 +4,7 @@
 	import * as Tabs from "$lib/components/ui/tabs";
 	import Slider from "$lib/components/ui/slider/slider.svelte";
 	import { debounce, sleep } from "$lib/utils";
-	import { API_ADDRESS } from "$src/config";
+	import { API_ADDRESS, WS_API_ADDRESS } from "$src/config";
 
 	let rightSliderValue = 50;
 	let leftSliderValue = 50;
@@ -40,7 +40,7 @@
 				mode = states.mode;
 				break;
 			} catch {
-				sleep(200);
+				await sleep(1000);
 			}
 		}
 		setTimeout(() => {

@@ -7,6 +7,14 @@
 	import FileTextIcon from "@lucide/svelte/icons/file-text";
 	import GaitAnalysisPage from "$src/gait-analysis-page/gait-analysis-page.svelte";
 	import SettingsPage from "./settings-page/settings-page.svelte";
+	import DataPage from "./data-page/data-page.svelte";
+	import { API_ADDRESS } from "./config";
+
+	let readDataStream = false;
+
+	const onTabChange = (tab: string) => {
+		readDataStream = tab == "data";
+	};
 </script>
 
 <main class="h-dvh w-screen flex flex-col">
@@ -14,11 +22,14 @@
 	<Tabs.Root
 		value="settings"
 		class="flex-1 flex flex-col overflow-y-hidden gap-0"
+		onValueChange={onTabChange}
 	>
 		<Tabs.Content value="settings" class="flex-1 overflow-scroll">
 			<SettingsPage />
 		</Tabs.Content>
-		<Tabs.Content value="data" class="flex-1 overflow-scroll"></Tabs.Content>
+		<Tabs.Content value="data" class="flex-1 overflow-scroll">
+			<DataPage {readDataStream} />
+		</Tabs.Content>
 		<Tabs.Content value="patients" class="flex-1 overflow-scroll"
 		></Tabs.Content>
 		<Tabs.Content value="report" class="flex-1 overflow-scroll">
