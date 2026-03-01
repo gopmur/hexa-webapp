@@ -5,6 +5,12 @@
 	import BatteryFull from "@lucide/svelte/icons/battery-full";
 	import UserRoundIcon from "@lucide/svelte/icons/user-round";
 	import { Button } from "$lib/components/ui/button";
+	import { API_ADDRESS } from "$src/config";
+
+	const onRestartClicked = async () => {
+		await fetch(`${API_ADDRESS}/api/restart`);
+		window.location.reload();
+	};
 </script>
 
 <header class="bg-accent w-full p-4">
@@ -16,8 +22,12 @@
 		</div>
 		<div class="flex gap-4">
 			<Button variant="default" size="icon"><Wifi class="size-6" /></Button>
-			<Button variant="default" size="icon"><PowerIcon class="size-6" /></Button>
-			<Button variant="default" size="icon"><BatteryFull class="size-6" /></Button>
+			<Button variant="default" size="icon" onclick={onRestartClicked}
+				><PowerIcon class="size-6" /></Button
+			>
+			<Button variant="default" size="icon"
+				><BatteryFull class="size-6" /></Button
+			>
 			<Button variant="default" size="icon"
 				><ThermometerIcon class="size-6" /></Button
 			>
