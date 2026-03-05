@@ -27,6 +27,26 @@
 		return responseData as ManualStates;
 	};
 
+	const setRtc = async () => {
+		const date = new Date(Date.now());
+		const req_body = {
+			time: {
+				hours: date.getHours(),
+				minutes: date.getMinutes(),
+				seconds: date.getSeconds(),
+			},
+			date: {
+				year: date.getFullYear(),
+				month: date.getMonth(),
+				day: date.getDate(),
+			},
+		};
+		await fetch(`${API_ADDRESS}/api/date-time`, {
+			method: "PUT",
+			body: JSON.stringify(req_body),
+		});
+	};
+
 	let initialized = false;
 
 	const loadStates = async () => {
@@ -50,6 +70,7 @@
 	};
 
 	loadStates();
+	setRtc();
 
 	const debouncedLeftUpdate = debounce((value: number) => {
 		if (!initialized) return;
