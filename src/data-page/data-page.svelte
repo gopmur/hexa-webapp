@@ -3,8 +3,6 @@
 	import * as Tabs from "$lib/components/ui/tabs";
 	import { API_ADDRESS, WS_API_ADDRESS } from "$src/config";
 	import { LineChart } from "layerchart";
-	import { scaleUtc } from "d3-scale";
-	import { curveLinear } from "d3-shape";
 	import * as Chart from "$lib/components/ui/chart/index.js";
 
 	export let readDataStream: boolean = false;
@@ -68,12 +66,13 @@
 
 		ws.onmessage = (event) => {
 			const data = JSON.parse(event.data);
+			console.log(data)
 			serviceStatusData = [];
 			const stmCpuUsages = data["stmCpuUsage"];
 			const espCpuUsages = data["espCpuUsage"];
 			const imuData = data["imu"];
 			const taskData = dataTab == "stm-task-data" ? stmCpuUsages : espCpuUsages;
-			appendImuData(imuData);
+			if (imuData) appendImuData(imuData);
 			for (const serviceName in taskData) {
 				serviceStatusData.push({
 					name: serviceName,
@@ -101,12 +100,14 @@
 
 	$: if (readDataStream) {
 		wsConnect();
-		fetch(`${API_ADDRESS}/api/streams/start/imu`);
-		fetch(`${API_ADDRESS}/api/streams/start/cpu_usage`);
+		// fetch(`${API_ADDRESS}/api/streams/start/imu`);
+		fetch(`${API_ADDRESS}/api/streams/start/stm_cpu_usage`);
+		// fetch(`${API_ADDRESS}/api/streams/start/esp_cpu_usage`);
 	} else {
-		wsDisconnect();
 		fetch(`${API_ADDRESS}/api/streams/stop/imu`);
-		fetch(`${API_ADDRESS}/api/streams/stop/cpu_usage`);
+		fetch(`${API_ADDRESS}/api/streams/stop/stm_cpu_usage`);
+		fetch(`${API_ADDRESS}/api/streams/stop/esp_cpu_usage`);
+		wsDisconnect();
 	}
 
 	const imuXSeries = [
@@ -137,7 +138,17 @@
 		desktop: { label: "Desktop", color: "var(--chart-1)" },
 	} satisfies Chart.ChartConfig;
 
-	const onDataTabChange = (dataTab: string) => {};
+	const onDataTabChange = (dataTab: string) => {
+		fetch(
+			`${API_ADDRESS}/api/streams/${dataTab == "imu" ? "start" : "stop"}/imu`,
+		);
+		fetch(
+			`${API_ADDRESS}/api/streams/${dataTab == "stm-task-data" ? "start" : "stop"}/stm_cpu_usage`,
+		);
+		fetch(
+			`${API_ADDRESS}/api/streams/${dataTab == "esp-task-data" ? "start" : "stop"}/esp_cpu_usage`,
+		);
+	};
 </script>
 
 <Tabs.Root bind:value={dataTab} class="w-full" onValueChange={onDataTabChange}>
@@ -204,7 +215,6 @@
 				}}
 				yDomain={[-180, 180]}
 			>
-			
 				{#snippet tooltip()}
 					<Chart.Tooltip hideLabel />
 				{/snippet}
