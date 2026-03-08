@@ -66,7 +66,7 @@
 
 		ws.onmessage = (event) => {
 			const data = JSON.parse(event.data);
-			console.log(data)
+
 			serviceStatusData = [];
 			const stmCpuUsages = data["stmCpuUsage"];
 			const espCpuUsages = data["espCpuUsage"];
@@ -100,9 +100,15 @@
 
 	$: if (readDataStream) {
 		wsConnect();
-		// fetch(`${API_ADDRESS}/api/streams/start/imu`);
-		fetch(`${API_ADDRESS}/api/streams/start/stm_cpu_usage`);
-		// fetch(`${API_ADDRESS}/api/streams/start/esp_cpu_usage`);
+		if (dataTab == "esp-task-data") {
+			fetch(`${API_ADDRESS}/api/streams/start/esp_cpu_usage`);
+		}
+		if (dataTab == "stm-task-data") {
+			fetch(`${API_ADDRESS}/api/streams/start/stm_cpu_usage`);
+		}
+		if (dataTab == "imu") {
+			fetch(`${API_ADDRESS}/api/streams/start/imu`);
+		}
 	} else {
 		fetch(`${API_ADDRESS}/api/streams/stop/imu`);
 		fetch(`${API_ADDRESS}/api/streams/stop/stm_cpu_usage`);
@@ -151,8 +157,12 @@
 	};
 </script>
 
-<Tabs.Root bind:value={dataTab} class="w-full" onValueChange={onDataTabChange}>
-	<Tabs.List class="w-full rounded-none h-20">
+<Tabs.Root
+	bind:value={dataTab}
+	class="h-full w-full flex-1 flex flex-col overflow-hidden gap-0"
+	onValueChange={onDataTabChange}
+>
+	<Tabs.List class="w-full rounded-none min-h-20">
 		<Tabs.Trigger class="flex flex-col" value="stm-task-data"
 			>STM32 Tasks</Tabs.Trigger
 		>
@@ -161,7 +171,8 @@
 		>
 		<Tabs.Trigger class="flex flex-col" value="imu">IMU</Tabs.Trigger>
 	</Tabs.List>
-	<Tabs.Content value="stm-task-data">
+
+	<Tabs.Content value="stm-task-data" class="overflow-y-scroll flex-1">
 		<Table.Root>
 			<Table.Header>
 				<Table.Row>
@@ -182,7 +193,7 @@
 			</Table.Body>
 		</Table.Root>
 	</Tabs.Content>
-	<Tabs.Content value="esp-task-data">
+	<Tabs.Content value="esp-task-data" class="overflow-y-scroll flex-1">
 		<Table.Root>
 			<Table.Header>
 				<Table.Row>
@@ -203,58 +214,96 @@
 			</Table.Body>
 		</Table.Root>
 	</Tabs.Content>
-	<Tabs.Content value="imu">
-		<Chart.Container config={chartConfig}>
-			<LineChart
-				data={imuChartData}
-				x="t"
-				axis="x"
-				series={imuXSeries}
-				props={{
-					highlight: { points: { r: 4 } },
-				}}
-				yDomain={[-180, 180]}
-			>
-				{#snippet tooltip()}
-					<Chart.Tooltip hideLabel />
-				{/snippet}
-			</LineChart>
-		</Chart.Container>
-	</Tabs.Content>
-	<Tabs.Content value="imu">
-		<Chart.Container config={chartConfig}>
-			<LineChart
-				data={imuChartData}
-				x="t"
-				axis="x"
-				series={imuYSeries}
-				props={{
-					highlight: { points: { r: 4 } },
-				}}
-				yDomain={[-180, 180]}
-			>
-				{#snippet tooltip()}
-					<Chart.Tooltip hideLabel />
-				{/snippet}
-			</LineChart>
-		</Chart.Container>
-	</Tabs.Content>
-	<Tabs.Content value="imu">
-		<Chart.Container config={chartConfig}>
-			<LineChart
-				data={imuChartData}
-				x="t"
-				axis="x"
-				series={imuZSeries}
-				props={{
-					highlight: { points: { r: 4 } },
-				}}
-				yDomain={[-180, 180]}
-			>
-				{#snippet tooltip()}
-					<Chart.Tooltip hideLabel />
-				{/snippet}
-			</LineChart>
-		</Chart.Container>
+	<Tabs.Content
+		value="imu"
+		class="overflow-y-scroll flex-1 flex flex-col gap-10"
+	>
+		<div class="flex">
+			<div class="w-10 flex justify-center items-center">
+				<p class="rotate-90">Pitch</p>
+			</div>
+			<div class="flex-1">
+				<Chart.Container config={chartConfig}>
+					<LineChart
+						data={imuChartData}
+						x="t"
+						axis="x"
+						series={imuXSeries}
+						props={{
+							highlight: { points: { r: 4 } },
+						}}
+						yDomain={[-180, 180]}
+						xDomain={[
+							imuChartData.at(0)?.t,
+							Number(imuChartData.at(-1)?.t) < 200
+								? 200
+								: imuChartData.at(-1)?.t,
+						]}
+					>
+						{#snippet tooltip()}
+							<Chart.Tooltip hideLabel />
+						{/snippet}
+					</LineChart>
+				</Chart.Container>
+			</div>
+		</div>
+		<div class="flex">
+			<div class="w-10 flex justify-center items-center">
+				<p class="rotate-90">Roll</p>
+			</div>
+			<div class="flex-1">
+				<Chart.Container config={chartConfig}>
+					<LineChart
+						data={imuChartData}
+						x="t"
+						axis="x"
+						series={imuYSeries}
+						props={{
+							highlight: { points: { r: 4 } },
+						}}
+						yDomain={[-180, 180]}
+						xDomain={[
+							imuChartData.at(0)?.t,
+							Number(imuChartData.at(-1)?.t) < 200
+								? 200
+								: imuChartData.at(-1)?.t,
+						]}
+					>
+						{#snippet tooltip()}
+							<Chart.Tooltip hideLabel />
+						{/snippet}
+					</LineChart>
+				</Chart.Container>
+			</div>
+		</div>
+		<div class="flex">
+			<div class="w-10 flex justify-center items-center">
+				<p class="rotate-90">Yaw</p>
+			</div>
+			<div class="flex-1">
+				<Chart.Container config={chartConfig}>
+					<LineChart
+						data={imuChartData}
+						x="t"
+						axis="x"
+						series={imuZSeries}
+						props={{
+							highlight: { points: { r: 4 } },
+						}}
+						yDomain={[-180, 180]}
+						xDomain={[
+							imuChartData.at(0)?.t,
+							Number(imuChartData.at(-1)?.t) < 200
+								? 200
+								: imuChartData.at(-1)?.t,
+						]}
+					>
+						{#snippet tooltip()}
+							<Chart.Tooltip hideLabel />
+						{/snippet}
+					</LineChart>
+				</Chart.Container>
+			</div>
+		</div>
 	</Tabs.Content>
 </Tabs.Root>
