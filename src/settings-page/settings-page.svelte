@@ -11,6 +11,7 @@
 	let running = false;
 	let loading = true;
 	let mode: RunningMode = "manual";
+	export let ws: WebSocket;
 
 	type RunningMode = "manual" | "automatic" | "semi-automatic" | "smart";
 
@@ -75,12 +76,12 @@
 	const debouncedLeftUpdate = debounce((value: number) => {
 		if (!initialized) return;
 		onLeftSliderValueChange(value);
-	}, 100);
+	}, 10);
 
 	const debouncedRightUpdate = debounce((value: number) => {
 		if (!initialized) return;
 		onRightSliderValueChange(value);
-	}, 100);
+	}, 10);
 
 	const onPowerClick = async () => {
 		running = !running;
@@ -93,26 +94,18 @@
 	};
 
 	const onLeftSliderValueChange = async (value: number) => {
-		await fetch(`${API_ADDRESS}/api/left_torque`, {
-			method: "PUT",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				torque: value,
+		ws.send(
+			JSON.stringify({
+				leftTorque: value,
 			}),
-		});
+		);
 	};
 	const onRightSliderValueChange = async (value: number) => {
-		await fetch(`${API_ADDRESS}/api/right_torque`, {
-			method: "PUT",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				torque: value,
+		ws.send(
+			JSON.stringify({
+				rightTorque: value,
 			}),
-		});
+		);
 	};
 </script>
 
@@ -135,20 +128,20 @@
 						<Slider
 							type="single"
 							bind:value={leftSliderValue}
-							max={100}
-							step={1}
+							max={10}
+							step={0.1}
 							orientation="vertical"
 							class="max-w-[70%]"
-							onValueChange={debouncedLeftUpdate}
+							onValueChange={onLeftSliderValueChange}
 						/>
 						<Slider
 							type="single"
 							bind:value={rightSliderValue}
-							max={100}
-							step={1}
+							max={10}
+							step={0.1}
 							orientation="vertical"
 							class="max-w-[70%]"
-							onValueChange={debouncedRightUpdate}
+							onValueChange={onRightSliderValueChange}
 						/>
 					</div>
 				</div>

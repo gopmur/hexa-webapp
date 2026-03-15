@@ -8,13 +8,16 @@
 	import GaitAnalysisPage from "$src/gait-analysis-page/gait-analysis-page.svelte";
 	import SettingsPage from "./settings-page/settings-page.svelte";
 	import DataPage from "./data-page/data-page.svelte";
-	import { API_ADDRESS } from "./config";
+	import { API_ADDRESS, WS_API_ADDRESS } from "./config";
 
 	let readDataStream = false;
+	let settingsPage = true;
 
 	const onTabChange = (tab: string) => {
 		readDataStream = tab == "data";
 	};
+
+	const ws = new WebSocket(`${WS_API_ADDRESS}/api/data`);
 </script>
 
 <main class="h-dvh w-screen flex flex-col">
@@ -25,10 +28,10 @@
 		onValueChange={onTabChange}
 	>
 		<Tabs.Content value="settings" class="flex-1 overflow-scroll">
-			<SettingsPage />
+			<SettingsPage {ws} />
 		</Tabs.Content>
 		<Tabs.Content value="data" class="flex-1 overflow-scroll">
-			<DataPage {readDataStream} />
+			<DataPage {readDataStream} {ws} />
 		</Tabs.Content>
 		<Tabs.Content value="patients" class="flex-1 overflow-scroll"
 		></Tabs.Content>
