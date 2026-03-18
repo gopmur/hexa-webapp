@@ -1,12 +1,27 @@
 <script lang="ts">
 	import * as Table from "$lib/components/ui/table/index.js";
 	import * as Tabs from "$lib/components/ui/tabs";
-	import { API_ADDRESS, WS_API_ADDRESS } from "$src/config";
+	import { API_ADDRESS } from "$src/config";
 	import { LineChart } from "layerchart";
 	import * as Chart from "$lib/components/ui/chart/index.js";
 
 	export let readDataStream: boolean = false;
 	export let ws: WebSocket;
+
+	type WsData = {
+		imu?: {
+			x: number;
+			y: number;
+			z: number;
+		};
+		stmCpuUsage?: Record<string, number>;
+		espCpuUsage?: Record<string, number>;
+		motor?: {
+			leftPosition: number;
+			rightPosition: number;
+		};
+		microseconds: number;
+	};
 
 	type ServiceStatusType = {
 		name: string;
@@ -50,9 +65,9 @@
 
 	const MAX_POINTS = 200;
 
-	const appendImuData = (imuData: ImuData) => {
+	const appendImuData = (imuData: ImuData, t: number) => {
 		const newPoint = {
-			t: imuT,
+			t: t / 1000,
 			x: imuData.x,
 			y: imuData.y,
 			z: imuData.z,
@@ -63,13 +78,11 @@
 		if (imuChartData.length > MAX_POINTS) {
 			imuChartData = imuChartData.slice(1);
 		}
-
-		imuT++;
 	};
 
-	const appendMotorData = (motorData: MotorData) => {
+	const appendMotorData = (motorData: MotorData, t: number) => {
 		const newPoint = {
-			t: motorT,
+			t: t / 1000,
 			leftPosition: motorData.leftPosition,
 			rightPosition: motorData.rightPosition,
 		};
@@ -80,25 +93,27 @@
 			motorChartData = motorChartData.slice(1);
 		}
 
-		motorT++;
 	};
 
 	ws.onmessage = (event) => {
-		const data = JSON.parse(event.data);
+		const data: WsData = JSON.parse(event.data);
 
 		serviceStatusData = [];
-		const stmCpuUsages = data["stmCpuUsage"];
-		const espCpuUsages = data["espCpuUsage"];
-		const imuData = data["imu"];
-		const motorData = data["motor"];
+		const stmCpuUsages = data.stmCpuUsage;
+		const espCpuUsages = data.espCpuUsage;
+		const imuData = data.imu;
+		const motorData = data.motor;
 		const taskData = dataTab == "stm-task-data" ? stmCpuUsages : espCpuUsages;
-		if (imuData) appendImuData(imuData);
-		if (motorData) appendMotorData(motorData);
-		for (const serviceName in taskData) {
-			serviceStatusData.push({
-				name: serviceName,
-				cpuUsage: taskData[serviceName],
-			});
+		const t = data.microseconds;
+		if (imuData) appendImuData(imuData, t);
+		if (motorData) appendMotorData(motorData, t);
+		if (taskData) {
+			for (const serviceName in taskData) {
+				serviceStatusData.push({
+					name: serviceName,
+					cpuUsage: taskData[serviceName],
+				});
+			}
 		}
 		serviceStatusData.push({
 			name: "total",
@@ -272,11 +287,8 @@
 								? 200
 								: imuChartData.at(-1)?.t,
 						]}
-					>
-						{#snippet tooltip()}
-							<Chart.Tooltip hideLabel />
-						{/snippet}
-					</LineChart>
+						tooltip={false}
+					></LineChart>
 				</Chart.Container>
 			</div>
 		</div>
@@ -301,11 +313,8 @@
 								? 200
 								: imuChartData.at(-1)?.t,
 						]}
-					>
-						{#snippet tooltip()}
-							<Chart.Tooltip hideLabel />
-						{/snippet}
-					</LineChart>
+						tooltip={false}
+					></LineChart>
 				</Chart.Container>
 			</div>
 		</div>
@@ -330,11 +339,8 @@
 								? 200
 								: imuChartData.at(-1)?.t,
 						]}
-					>
-						{#snippet tooltip()}
-							<Chart.Tooltip hideLabel />
-						{/snippet}
-					</LineChart>
+						tooltip={false}
+					></LineChart>
 				</Chart.Container>
 			</div>
 		</div>
@@ -364,11 +370,8 @@
 								? 200
 								: motorChartData.at(-1)?.t,
 						]}
-					>
-						{#snippet tooltip()}
-							<Chart.Tooltip hideLabel />
-						{/snippet}
-					</LineChart>
+						tooltip={false}
+					></LineChart>
 				</Chart.Container>
 			</div>
 		</div>
@@ -393,11 +396,8 @@
 								? 200
 								: motorChartData.at(-1)?.t,
 						]}
-					>
-						{#snippet tooltip()}
-							<Chart.Tooltip hideLabel />
-						{/snippet}
-					</LineChart>
+						tooltip={false}
+					></LineChart>
 				</Chart.Container>
 			</div>
 		</div>
