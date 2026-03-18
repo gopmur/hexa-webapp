@@ -6,6 +6,7 @@
 	import WifiLow from "@lucide/svelte/icons/wifi-low";
 	import WifiZero from "@lucide/svelte/icons/wifi-zero";
 	import WifiOff from "@lucide/svelte/icons/wifi-off";
+	import Lock from "@lucide/svelte/icons/lock";
 	import BatteryFull from "@lucide/svelte/icons/battery-full";
 	import UserRoundIcon from "@lucide/svelte/icons/user-round";
 	import { Button } from "$lib/components/ui/button";
@@ -14,7 +15,12 @@
 	import { Spinner } from "$lib/components/ui/spinner/index.js";
 	import { onMount } from "svelte";
 
-	type WifiScanResponseType = Record<string, { rssi: number }>;
+	type WifiScanRecordType = {
+		rssi: number;
+		ssid: string;
+		bssid: string;
+		open: boolean;
+	};
 
 	type ConnectedWifiResponseType =
 		| {
@@ -27,8 +33,8 @@
 				message: string;
 		  };
 
-	let wifis: WifiScanResponseType = {};
-	let pendingWifiScans = 0;
+	let wifis: WifiScanRecordType[] = [];
+	let pendingWifiScan = false;
 	let wifiStatusLoading = true;
 	let wifiConnected = false;
 	let wifiRssi = 0;
@@ -39,11 +45,17 @@
 		window.location.reload();
 	};
 
-	const onWifiButtonClicked = async () => {
-		pendingWifiScans++;
-		const response = await fetch(`${API_ADDRESS}/api/wifi/scan`);
-		wifis = await response.json();
-		pendingWifiScans--;
+	const scanWifi = async () => {
+		if (pendingWifiScan) {
+			return;
+		}
+		pendingWifiScan = true;
+		fetch(`${API_ADDRESS}/api/null`);
+		const scanResponse = await fetch(`${API_ADDRESS}/api/wifi/scan`);
+		getWifiStatus();
+		wifis = await scanResponse.json();
+		wifis.sort((a, b) => b.rssi - a.rssi);
+		pendingWifiScan = false;
 	};
 
 	const getWifiStatus = async () => {
@@ -64,7 +76,7 @@
 	};
 
 	onMount(() => {
-		getWifiStatus()
+		getWifiStatus();
 		const interval = setInterval(getWifiStatus, 5000);
 
 		return () => clearInterval(interval);
@@ -75,26 +87,39 @@
 	<Dialog.Root>
 		<Dialog.Content class="min-h-2/3 max-h-2/3 flex flex-col">
 			<Dialog.Header>
-				{#if pendingWifiScans}
-					<Spinner />
-				{/if}
+				<Dialog.Title>WIFI</Dialog.Title>
+				<Dialog.Description class="px-8">
+					<Button class="flex gap-2" onclick={scanWifi}>
+						Scan
+						{#if pendingWifiScan}
+							<Spinner />
+						{/if}
+					</Button>
+				</Dialog.Description>
 			</Dialog.Header>
 			<div
 				class="flex flex-col items-center gap-2 max-h-full h-full w-full overflow-y-scroll"
 			>
-				{#each Object.keys(wifis) as wifi_name (wifi_name)}
-					<Button class="w-4/5 flex justify-start" variant="outline">
-						{#if wifis[wifi_name].rssi > -50}
-							<Wifi />
-						{:else if wifis[wifi_name].rssi > -70}
-							<WifiHigh />
-						{:else if wifis[wifi_name].rssi > -80}
-							<WifiLow />
-						{:else}
-							<WifiZero />
-						{/if}
-						{wifi_name}</Button
-					>
+				{#each wifis as wifi (wifi)}
+					<Button class="w-4/5 flex justify-between" variant="outline">
+						<div class="flex gap-2">
+							{#if wifi.rssi > -50}
+								<Wifi />
+							{:else if wifi.rssi > -70}
+								<WifiHigh />
+							{:else if wifi.rssi > -80}
+								<WifiLow />
+							{:else}
+								<WifiZero />
+							{/if}
+							{wifi.ssid}
+						</div>
+						<div>
+							{#if !wifi.open}
+								<Lock />
+							{/if}
+						</div>
+					</Button>
 				{/each}
 			</div>
 		</Dialog.Content>
@@ -105,9 +130,8 @@
 				<UserRoundIcon class="size-6" />
 			</div>
 			<div class="flex gap-4">
-				<Dialog.Trigger onclick={onWifiButtonClicked}>
+				<Dialog.Trigger onclick={scanWifi}>
 					<Button variant="default" size="icon">
-						
 						{#if !wifiConnected}
 							<WifiOff class="size-6" />
 						{:else if wifiRssi > -50}
