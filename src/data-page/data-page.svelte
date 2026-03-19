@@ -34,6 +34,7 @@
 		name: string;
 		cpuUsage: number;
 		maxStackUsage: number;
+		maxStackUsagePercent: number;
 		stackSize: number;
 		absentCounter: number;
 	};
@@ -146,6 +147,8 @@
 					cpuUsage: receivedTaskData[name].cpuUsage,
 					maxStackUsage: receivedTaskData[name].maxStackUsage * 4,
 					stackSize: stackSizes[name] * 4,
+					maxStackUsagePercent:
+						(receivedTaskData[name].maxStackUsage / stackSizes[name]) * 100,
 					absentCounter: 0,
 				});
 			} else {
@@ -154,6 +157,8 @@
 				serviceStatus.maxStackUsage = receivedTaskData[name].maxStackUsage * 4;
 				serviceStatus.stackSize = stackSizes[name] * 4;
 				serviceStatus.absentCounter = 0;
+				serviceStatus.maxStackUsagePercent =
+					(receivedTaskData[name].maxStackUsage / stackSizes[name]) * 100;
 			}
 		}
 
@@ -171,6 +176,7 @@
 					maxStackUsage: acc.maxStackUsage + curr.maxStackUsage,
 					stackSize: acc.stackSize + curr.stackSize,
 					absentCounter: 0,
+					maxStackUsagePercent: 0,
 				};
 			},
 			{
@@ -179,8 +185,12 @@
 				maxStackUsage: 0,
 				stackSize: 0,
 				absentCounter: 0,
+				maxStackUsagePercent: 0,
 			},
 		);
+
+		newTotal.maxStackUsagePercent =
+			(newTotal.maxStackUsage / newTotal.stackSize) * 100;
 
 		newTaskTableData.push(newTotal);
 		return newTaskTableData;
@@ -197,10 +207,18 @@
 		if (imuData) appendImuData(imuData, t);
 		if (motorData) appendMotorData(motorData, t);
 		if (stmTaskData) {
-			stmTaskTableData = updateTaskTable(stmTaskTableData, stmTaskData, stmTaskStackSizes);
+			stmTaskTableData = updateTaskTable(
+				stmTaskTableData,
+				stmTaskData,
+				stmTaskStackSizes,
+			);
 		}
 		if (espTaskData) {
-			espTaskTableData = updateTaskTable(espTaskTableData, espTaskData, espTaskStackSizes);
+			espTaskTableData = updateTaskTable(
+				espTaskTableData,
+				espTaskData,
+				espTaskStackSizes,
+			);
 		}
 
 		// serviceStatusData.sort((a, b) => b.cpuUsage - a.cpuUsage);
@@ -331,10 +349,10 @@
 							style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.cpuUsage + 1) / Math.log10(101)), 40)}%);`}
 							>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
 						>
-						<Table.Cell>
-							{(serviceStatus.maxStackUsage / serviceStatus.stackSize).toFixed(
-								2,
-							)}%
+						<Table.Cell
+							style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.maxStackUsagePercent + 1) / Math.log10(101)), 40)}%);`}
+						>
+							{serviceStatus.maxStackUsagePercent.toFixed(2)}%
 						</Table.Cell>
 						<Table.Cell>
 							{formatMemorySize(serviceStatus.maxStackUsage)}
@@ -366,10 +384,10 @@
 							style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.cpuUsage + 1) / Math.log10(101)), 40)}%);`}
 							>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
 						>
-						<Table.Cell>
-							{(serviceStatus.maxStackUsage / serviceStatus.stackSize).toFixed(
-								2,
-							)}%
+						<Table.Cell
+							style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.maxStackUsagePercent + 1) / Math.log10(101)), 40)}%);`}
+						>
+							{serviceStatus.maxStackUsagePercent.toFixed(2)}%
 						</Table.Cell>
 						<Table.Cell>
 							{formatMemorySize(serviceStatus.maxStackUsage)}
