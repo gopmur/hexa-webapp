@@ -5,6 +5,7 @@
 	import Slider from "$lib/components/ui/slider/slider.svelte";
 	import { debounce, sleep } from "$lib/utils";
 	import { API_ADDRESS, WS_API_ADDRESS } from "$src/config";
+	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
 
 	let rightSliderValue = 50;
 	let leftSliderValue = 50;
@@ -73,16 +74,6 @@
 	loadStates();
 	setRtc();
 
-	const debouncedLeftUpdate = debounce((value: number) => {
-		if (!initialized) return;
-		onLeftSliderValueChange(value);
-	}, 10);
-
-	const debouncedRightUpdate = debounce((value: number) => {
-		if (!initialized) return;
-		onRightSliderValueChange(value);
-	}, 10);
-
 	const onPowerClick = async () => {
 		running = !running;
 		if (running) await fetch(`${API_ADDRESS}/api/start`, { method: "PUT" });
@@ -114,9 +105,9 @@
 		<Tabs.Root value={mode} class="w-full" onValueChange={onModeChange}>
 			<Tabs.List class="w-full rounded-none h-20">
 				<Tabs.Trigger class="flex flex-col" value="manual">Manual</Tabs.Trigger>
-				<Tabs.Trigger class="flex flex-col" value="automatic"
-					>Automatic</Tabs.Trigger
-				>
+				<Tabs.Trigger class="flex flex-col" value="automatic">
+					Automatic
+				</Tabs.Trigger>
 				<Tabs.Trigger class="flex flex-col" value="semi-automatic">
 					Sem-Automatic
 				</Tabs.Trigger>
@@ -153,6 +144,12 @@
 				class={`rounded-full h-40 w-40 active:transition-all active:scale-[0.98] ${running ? "bg-green-400" : "bg-red-500"}`}
 				><PowerIcon class="size-20" /></Button
 			>
+		</div>
+	{:else}
+		<div class="h-full w-full flex items-center justify-center">
+			<div class="flex flex-col gap-4 items-center">
+				<Spinner class="size-40" />
+			</div>
 		</div>
 	{/if}
 </div>

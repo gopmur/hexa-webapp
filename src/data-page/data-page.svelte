@@ -5,7 +5,8 @@
 	import { LineChart } from "layerchart";
 	import * as Chart from "$lib/components/ui/chart/index.js";
 	import { onMount } from "svelte";
-	import { numberIsValid } from "$lib/utils";
+	import { numberIsValid, sleep } from "$lib/utils";
+	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
 
 	export let readDataStream: boolean = false;
 	export let ws: WebSocket;
@@ -76,6 +77,8 @@
 	let motorChartData: MotorChartData[] = [];
 	let stmTaskStackSizes: StackSizeResponse;
 	let espTaskStackSizes: StackSizeResponse;
+	let espStackSizesLoading = true;
+	let stmStackSizesLoading = true;
 
 	const MAX_POINTS = 200;
 
@@ -108,14 +111,36 @@
 		}
 	};
 
-	const getStackSizes = async () => {
-		let stm_response = await fetch(`${API_ADDRESS}/api/stm_stack_size`);
-		let esp_response = await fetch(`${API_ADDRESS}/api/esp_stack_size`);
-		stmTaskStackSizes = await stm_response.json();
-		espTaskStackSizes = await esp_response.json();
+	const getStmStackSizes = async () => {
+		stmStackSizesLoading = true;
+		while (true) {
+			try {
+				let stm_response = await fetch(`${API_ADDRESS}/api/stm_stack_size`);
+				stmTaskStackSizes = await stm_response.json();
+				break;
+			} catch {
+				await sleep(1000);
+			}
+		}
+		stmStackSizesLoading = false;
 	};
 
-	getStackSizes();
+	const getEspStackSizes = async () => {
+		espStackSizesLoading = true;
+		while (true) {
+			try {
+				let esp_response = await fetch(`${API_ADDRESS}/api/esp_stack_size`);
+				espTaskStackSizes = await esp_response.json();
+				break;
+			} catch {
+				await sleep(1000);
+			}
+		}
+		espStackSizesLoading = false;
+	};
+
+	getStmStackSizes();
+	getEspStackSizes();
 
 	const updateTaskTable = (
 		taskTableData: TaskTableData[],
@@ -331,74 +356,90 @@
 	</Tabs.List>
 
 	<Tabs.Content value="stm-task-data" class="overflow-y-scroll flex-1">
-		<Table.Root>
-			<Table.Header>
-				<Table.Row>
-					<Table.Head class="w-[100px]">Service</Table.Head>
-					<Table.Head>CPU Usage</Table.Head>
-					<Table.Head>Stack (%)</Table.Head>
-					<Table.Head>Stack</Table.Head>
-					<Table.Head>Stack Size</Table.Head>
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each stmTaskTableData as serviceStatus (serviceStatus)}
+		{#if stmStackSizesLoading}
+			<div class="h-full w-full flex items-center justify-center">
+				<div class="flex flex-col gap-4 items-center">
+					<Spinner class="size-40" />
+				</div>
+			</div>
+		{:else}
+			<Table.Root>
+				<Table.Header>
 					<Table.Row>
-						<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell>
-						<Table.Cell
-							style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.cpuUsage + 1) / Math.log10(101)), 40)}%);`}
-							>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
-						>
-						<Table.Cell
-							style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.maxStackUsagePercent + 1) / Math.log10(101)), 40)}%);`}
-						>
-							{serviceStatus.maxStackUsagePercent.toFixed(2)}%
-						</Table.Cell>
-						<Table.Cell>
-							{formatMemorySize(serviceStatus.maxStackUsage)}
-						</Table.Cell>
-						<Table.Cell>
-							{formatMemorySize(serviceStatus.stackSize)}
-						</Table.Cell>
+						<Table.Head class="w-[100px]">Service</Table.Head>
+						<Table.Head>CPU Usage</Table.Head>
+						<Table.Head>Stack (%)</Table.Head>
+						<Table.Head>Stack</Table.Head>
+						<Table.Head>Stack Size</Table.Head>
 					</Table.Row>
-				{/each}
-			</Table.Body>
-		</Table.Root>
+				</Table.Header>
+				<Table.Body>
+					{#each stmTaskTableData as serviceStatus (serviceStatus)}
+						<Table.Row>
+							<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell>
+							<Table.Cell
+								style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.cpuUsage + 1) / Math.log10(101)), 40)}%);`}
+								>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
+							>
+							<Table.Cell
+								style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.maxStackUsagePercent + 1) / Math.log10(101)), 40)}%);`}
+							>
+								{serviceStatus.maxStackUsagePercent.toFixed(2)}%
+							</Table.Cell>
+							<Table.Cell>
+								{formatMemorySize(serviceStatus.maxStackUsage)}
+							</Table.Cell>
+							<Table.Cell>
+								{formatMemorySize(serviceStatus.stackSize)}
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		{/if}
 	</Tabs.Content>
 	<Tabs.Content value="esp-task-data" class="overflow-y-scroll flex-1">
-		<Table.Root>
-			<Table.Header>
-				<Table.Row>
-					<Table.Head class="w-[100px]">Service</Table.Head>
-					<Table.Head>CPU Usage</Table.Head>
-					<Table.Head>Stack (%)</Table.Head>
-					<Table.Head>Stack</Table.Head>
-					<Table.Head>Stack Size</Table.Head>
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each espTaskTableData as serviceStatus (serviceStatus)}
+		{#if espStackSizesLoading}
+			<div class="h-full w-full flex items-center justify-center">
+				<div class="flex flex-col gap-4 items-center">
+					<Spinner class="size-40" />
+				</div>
+			</div>
+		{:else}
+			<Table.Root>
+				<Table.Header>
 					<Table.Row>
-						<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell>
-						<Table.Cell
-							style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.cpuUsage + 1) / Math.log10(101)), 40)}%);`}
-							>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
-						>
-						<Table.Cell
-							style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.maxStackUsagePercent + 1) / Math.log10(101)), 40)}%);`}
-						>
-							{serviceStatus.maxStackUsagePercent.toFixed(2)}%
-						</Table.Cell>
-						<Table.Cell>
-							{formatMemorySize(serviceStatus.maxStackUsage)}
-						</Table.Cell>
-						<Table.Cell>
-							{formatMemorySize(serviceStatus.stackSize)}
-						</Table.Cell>
+						<Table.Head class="w-[100px]">Service</Table.Head>
+						<Table.Head>CPU Usage</Table.Head>
+						<Table.Head>Stack (%)</Table.Head>
+						<Table.Head>Stack</Table.Head>
+						<Table.Head>Stack Size</Table.Head>
 					</Table.Row>
-				{/each}
-			</Table.Body>
-		</Table.Root>
+				</Table.Header>
+				<Table.Body>
+					{#each espTaskTableData as serviceStatus (serviceStatus)}
+						<Table.Row>
+							<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell>
+							<Table.Cell
+								style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.cpuUsage + 1) / Math.log10(101)), 40)}%);`}
+								>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
+							>
+							<Table.Cell
+								style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.maxStackUsagePercent + 1) / Math.log10(101)), 40)}%);`}
+							>
+								{serviceStatus.maxStackUsagePercent.toFixed(2)}%
+							</Table.Cell>
+							<Table.Cell>
+								{formatMemorySize(serviceStatus.maxStackUsage)}
+							</Table.Cell>
+							<Table.Cell>
+								{formatMemorySize(serviceStatus.stackSize)}
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		{/if}
 	</Tabs.Content>
 	<Tabs.Content
 		value="imu"

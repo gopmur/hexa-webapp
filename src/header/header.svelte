@@ -6,10 +6,11 @@
 	import WifiLow from "@lucide/svelte/icons/wifi-low";
 	import WifiZero from "@lucide/svelte/icons/wifi-zero";
 	import WifiOff from "@lucide/svelte/icons/wifi-off";
+	import RotateCw from "@lucide/svelte/icons/rotate-cw";
 	import Lock from "@lucide/svelte/icons/lock";
 	import BatteryFull from "@lucide/svelte/icons/battery-full";
 	import UserRoundIcon from "@lucide/svelte/icons/user-round";
-	import { Button } from "$lib/components/ui/button";
+	import { Button, Root } from "$lib/components/ui/button";
 	import { API_ADDRESS } from "$src/config";
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
 	import { Spinner } from "$lib/components/ui/spinner/index.js";
@@ -40,8 +41,16 @@
 	let wifiRssi = 0;
 	let wifiSsid = "";
 
-	const onRestartClicked = async () => {
-		await fetch(`${API_ADDRESS}/api/restart`);
+	const restart = async () => {
+		fetch(`${API_ADDRESS}/api/restart`);
+		window.location.reload();
+	};
+	const restartEsp = async () => {
+		fetch(`${API_ADDRESS}/api/restart/esp`);
+		window.location.reload();
+	};
+	const restartStm = async () => {
+		fetch(`${API_ADDRESS}/api/restart/stm`);
 		window.location.reload();
 	};
 
@@ -84,52 +93,52 @@
 </script>
 
 <header class="bg-accent w-full p-4">
-	<Dialog.Root>
-		<Dialog.Content class="min-h-2/3 max-h-2/3 flex flex-col">
-			<Dialog.Header>
-				<Dialog.Title>WIFI</Dialog.Title>
-				<Dialog.Description class="px-8">
-					<Button class="flex gap-2" onclick={scanWifi}>
-						Scan
-						{#if pendingWifiScan}
-							<Spinner />
-						{/if}
-					</Button>
-				</Dialog.Description>
-			</Dialog.Header>
-			<div
-				class="flex flex-col items-center gap-2 max-h-full h-full w-full overflow-y-scroll"
-			>
-				{#each wifis as wifi (wifi)}
-					<Button class="w-4/5 flex justify-between" variant="outline">
-						<div class="flex gap-2">
-							{#if wifi.rssi > -50}
-								<Wifi />
-							{:else if wifi.rssi > -70}
-								<WifiHigh />
-							{:else if wifi.rssi > -80}
-								<WifiLow />
-							{:else}
-								<WifiZero />
-							{/if}
-							{wifi.ssid}
-						</div>
-						<div>
-							{#if !wifi.open}
-								<Lock />
-							{/if}
-						</div>
-					</Button>
-				{/each}
-			</div>
-		</Dialog.Content>
-		<div class="flex justify-between items-center">
-			<div
-				class="w-fit h-fit rounded-full border-2 border-black flex justify-center items-center aspect-square"
-			>
-				<UserRoundIcon class="size-6" />
-			</div>
-			<div class="flex gap-4">
+	<div class="flex justify-between items-center">
+		<div
+			class="w-fit h-fit rounded-full border-2 border-black flex justify-center items-center aspect-square"
+		>
+			<UserRoundIcon class="size-6" />
+		</div>
+		<div class="flex gap-4">
+			<Dialog.Root>
+				<Dialog.Content class="min-h-2/3 max-h-2/3 flex flex-col">
+					<Dialog.Header>
+						<Dialog.Title>WIFI</Dialog.Title>
+						<Dialog.Description class="px-8">
+							<Button class="flex gap-2" onclick={scanWifi}>
+								Scan
+								{#if pendingWifiScan}
+									<Spinner />
+								{/if}
+							</Button>
+						</Dialog.Description>
+					</Dialog.Header>
+					<div
+						class="flex flex-col items-center gap-2 max-h-full h-full w-full overflow-y-scroll"
+					>
+						{#each wifis as wifi (wifi)}
+							<Button class="w-4/5 flex justify-between" variant="outline">
+								<div class="flex gap-2">
+									{#if wifi.rssi > -50}
+										<Wifi />
+									{:else if wifi.rssi > -70}
+										<WifiHigh />
+									{:else if wifi.rssi > -80}
+										<WifiLow />
+									{:else}
+										<WifiZero />
+									{/if}
+									{wifi.ssid}
+								</div>
+								<div>
+									{#if !wifi.open}
+										<Lock />
+									{/if}
+								</div>
+							</Button>
+						{/each}
+					</div>
+				</Dialog.Content>
 				<Dialog.Trigger onclick={scanWifi}>
 					<Button variant="default" size="icon">
 						{#if !wifiConnected}
@@ -145,16 +154,34 @@
 						{/if}</Button
 					>
 				</Dialog.Trigger>
-				<Button variant="default" size="icon" onclick={onRestartClicked}
-					><PowerIcon class="size-6" /></Button
-				>
-				<Button variant="default" size="icon"
-					><BatteryFull class="size-6" /></Button
-				>
-				<Button variant="default" size="icon"
-					><ThermometerIcon class="size-6" /></Button
-				>
-			</div>
+			</Dialog.Root>
+			<Dialog.Root>
+				<Dialog.Content class="flex flex-col">
+					<Dialog.Header>
+						<Dialog.Title>Power</Dialog.Title>
+						<!-- <Dialog.Description class="px-8">
+							
+						</Dialog.Description> -->
+					</Dialog.Header>
+					<Button onclick={restart}>
+						<RotateCw />
+						Restart
+					</Button>
+					<Button onclick={restartEsp}><RotateCw />Restart ESP32</Button>
+					<Button onclick={restartStm}><RotateCw />Restart STM32</Button>
+				</Dialog.Content>
+				<Dialog.Trigger>
+					<Button variant="default" size="icon">
+						<PowerIcon class="size-6" />
+					</Button>
+				</Dialog.Trigger>
+			</Dialog.Root>
+			<Button variant="default" size="icon">
+				<BatteryFull class="size-6" />
+			</Button>
+			<Button variant="default" size="icon">
+				<ThermometerIcon class="size-6" />
+			</Button>
 		</div>
-	</Dialog.Root>
+	</div>
 </header>
