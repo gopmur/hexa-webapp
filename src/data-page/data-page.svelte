@@ -4,9 +4,16 @@
 	import { API_ADDRESS } from "$src/config";
 	import { LineChart } from "layerchart";
 	import * as Chart from "$lib/components/ui/chart/index.js";
+	import { onMount } from "svelte";
+	import { numberIsValid } from "$lib/utils";
 
 	export let readDataStream: boolean = false;
 	export let ws: WebSocket;
+
+	type ReceivedTaskDataType = {
+		cpuUsage: number;
+		maxStackUsage: number;
+	};
 
 	type WsData = {
 		imu?: {
@@ -14,8 +21,8 @@
 			y: number;
 			z: number;
 		};
-		stmCpuUsage?: Record<string, number>;
-		espCpuUsage?: Record<string, number>;
+		stmCpuUsage?: Record<string, ReceivedTaskDataType>;
+		espCpuUsage?: Record<string, ReceivedTaskDataType>;
 		motor?: {
 			leftPosition: number;
 			rightPosition: number;
@@ -23,9 +30,12 @@
 		microseconds: number;
 	};
 
-	type ServiceStatusType = {
+	type TaskTableData = {
 		name: string;
 		cpuUsage: number;
+		maxStackUsage: number;
+		stackSize: number;
+		absentCounter: number;
 	};
 
 	type ImuData = {
@@ -52,16 +62,19 @@
 		leftPosition: number;
 	};
 
+	type StackSizeResponse = Record<string, number>;
+
 	type DataTab = "stm-task-data" | "esp-task-data" | "imu" | "motor";
 
-	let serviceStatusData: ServiceStatusType[] = [];
+	let stmTaskTableData: TaskTableData[] = [];
+	let espTaskTableData: TaskTableData[] = [];
 
 	let dataTab: DataTab = "stm-task-data";
 
 	let imuChartData: ImuChartData[] = [];
 	let motorChartData: MotorChartData[] = [];
-	let imuT = 0;
-	let motorT = 0;
+	let stmTaskStackSizes: StackSizeResponse;
+	let espTaskStackSizes: StackSizeResponse;
 
 	const MAX_POINTS = 200;
 
@@ -92,37 +105,116 @@
 		if (motorChartData.length > MAX_POINTS) {
 			motorChartData = motorChartData.slice(1);
 		}
+	};
 
+	const getStackSizes = async () => {
+		let stm_response = await fetch(`${API_ADDRESS}/api/stm_stack_size`);
+		let esp_response = await fetch(`${API_ADDRESS}/api/esp_stack_size`);
+		stmTaskStackSizes = await stm_response.json();
+		espTaskStackSizes = await esp_response.json();
+	};
+
+	getStackSizes();
+
+	const updateTaskTable = (
+		taskTableData: TaskTableData[],
+		receivedTaskData: Record<string, ReceivedTaskDataType>,
+		stackSizes: Record<string, number>,
+	) => {
+		let newTaskTableData = structuredClone(taskTableData);
+		receivedTaskData = Object.fromEntries(
+			Object.entries(receivedTaskData).filter(
+				([name, taskData]) =>
+					numberIsValid(taskData.cpuUsage) &&
+					numberIsValid(taskData.maxStackUsage) &&
+					numberIsValid(stackSizes[name]),
+			),
+		);
+		for (const taskRecord of newTaskTableData) {
+			taskRecord.absentCounter++;
+		}
+		newTaskTableData = newTaskTableData.filter(
+			(serviceStatus) => serviceStatus.absentCounter < 10,
+		);
+		for (const name in receivedTaskData) {
+			const serviceStatus = newTaskTableData.find(
+				(serviceStatus) => serviceStatus.name == name,
+			);
+			if (!serviceStatus) {
+				newTaskTableData.push({
+					name: name,
+					cpuUsage: receivedTaskData[name].cpuUsage,
+					maxStackUsage: receivedTaskData[name].maxStackUsage * 4,
+					stackSize: stackSizes[name] * 4,
+					absentCounter: 0,
+				});
+			} else {
+				serviceStatus.name = name;
+				serviceStatus.cpuUsage = receivedTaskData[name].cpuUsage;
+				serviceStatus.maxStackUsage = receivedTaskData[name].maxStackUsage * 4;
+				serviceStatus.stackSize = stackSizes[name] * 4;
+				serviceStatus.absentCounter = 0;
+			}
+		}
+
+		const totalRecordIndex = newTaskTableData.findIndex(
+			(serviceStatus) => serviceStatus.name == "total",
+		);
+		if (totalRecordIndex >= 0) {
+			newTaskTableData.splice(totalRecordIndex, 1);
+		}
+		const newTotal = newTaskTableData.reduce(
+			(acc, curr) => {
+				return {
+					name: "total",
+					cpuUsage: acc.cpuUsage + curr.cpuUsage,
+					maxStackUsage: acc.maxStackUsage + curr.maxStackUsage,
+					stackSize: acc.stackSize + curr.stackSize,
+					absentCounter: 0,
+				};
+			},
+			{
+				name: "total",
+				cpuUsage: 0,
+				maxStackUsage: 0,
+				stackSize: 0,
+				absentCounter: 0,
+			},
+		);
+
+		newTaskTableData.push(newTotal);
+		return newTaskTableData;
 	};
 
 	ws.onmessage = (event) => {
 		const data: WsData = JSON.parse(event.data);
-
-		serviceStatusData = [];
-		const stmCpuUsages = data.stmCpuUsage;
-		const espCpuUsages = data.espCpuUsage;
+		const stmTaskData = data.stmCpuUsage;
+		const espTaskData = data.espCpuUsage;
 		const imuData = data.imu;
 		const motorData = data.motor;
-		const taskData = dataTab == "stm-task-data" ? stmCpuUsages : espCpuUsages;
 		const t = data.microseconds;
+
 		if (imuData) appendImuData(imuData, t);
 		if (motorData) appendMotorData(motorData, t);
-		if (taskData) {
-			for (const serviceName in taskData) {
-				serviceStatusData.push({
-					name: serviceName,
-					cpuUsage: taskData[serviceName],
-				});
-			}
+		if (stmTaskData) {
+			stmTaskTableData = updateTaskTable(stmTaskTableData, stmTaskData, stmTaskStackSizes);
 		}
-		serviceStatusData.push({
-			name: "total",
-			cpuUsage: serviceStatusData.reduce(
-				(acc, curr) => (acc += curr.cpuUsage),
-				0,
-			),
-		});
+		if (espTaskData) {
+			espTaskTableData = updateTaskTable(espTaskTableData, espTaskData, espTaskStackSizes);
+		}
+
 		// serviceStatusData.sort((a, b) => b.cpuUsage - a.cpuUsage);
+	};
+
+	const formatMemorySize = (size: number) => {
+		if (size > 2 ** 20) {
+			return `${(size / 2 ** 20).toFixed(1)}MB`;
+		}
+		if (size > 2 ** 10) {
+			return `${(size / 2 ** 10).toFixed(1)}KB`;
+		} else {
+			return `${size}B`;
+		}
 	};
 
 	$: if (readDataStream) {
@@ -226,16 +318,30 @@
 				<Table.Row>
 					<Table.Head class="w-[100px]">Service</Table.Head>
 					<Table.Head>CPU Usage</Table.Head>
+					<Table.Head>Stack (%)</Table.Head>
+					<Table.Head>Stack</Table.Head>
+					<Table.Head>Stack Size</Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
-				{#each serviceStatusData as serviceStatus (serviceStatus)}
+				{#each stmTaskTableData as serviceStatus (serviceStatus)}
 					<Table.Row>
 						<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell>
 						<Table.Cell
 							style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.cpuUsage + 1) / Math.log10(101)), 40)}%);`}
-							>{serviceStatus.cpuUsage.toFixed(1)}%</Table.Cell
+							>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
 						>
+						<Table.Cell>
+							{(serviceStatus.maxStackUsage / serviceStatus.stackSize).toFixed(
+								2,
+							)}%
+						</Table.Cell>
+						<Table.Cell>
+							{formatMemorySize(serviceStatus.maxStackUsage)}
+						</Table.Cell>
+						<Table.Cell>
+							{formatMemorySize(serviceStatus.stackSize)}
+						</Table.Cell>
 					</Table.Row>
 				{/each}
 			</Table.Body>
@@ -247,16 +353,30 @@
 				<Table.Row>
 					<Table.Head class="w-[100px]">Service</Table.Head>
 					<Table.Head>CPU Usage</Table.Head>
+					<Table.Head>Stack (%)</Table.Head>
+					<Table.Head>Stack</Table.Head>
+					<Table.Head>Stack Size</Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
-				{#each serviceStatusData as serviceStatus (serviceStatus)}
+				{#each espTaskTableData as serviceStatus (serviceStatus)}
 					<Table.Row>
 						<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell>
 						<Table.Cell
 							style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.cpuUsage + 1) / Math.log10(101)), 40)}%);`}
-							>{serviceStatus.cpuUsage.toFixed(1)}%</Table.Cell
+							>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
 						>
+						<Table.Cell>
+							{(serviceStatus.maxStackUsage / serviceStatus.stackSize).toFixed(
+								2,
+							)}%
+						</Table.Cell>
+						<Table.Cell>
+							{formatMemorySize(serviceStatus.maxStackUsage)}
+						</Table.Cell>
+						<Table.Cell>
+							{formatMemorySize(serviceStatus.stackSize)}
+						</Table.Cell>
 					</Table.Row>
 				{/each}
 			</Table.Body>
