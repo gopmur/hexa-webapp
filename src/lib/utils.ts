@@ -28,6 +28,6 @@ export const debounce = (fn: (...args: any[]) => void, delay: number) => {
 export const sleep = (ms: number) =>
 	new Promise((resolve) => setTimeout(resolve, ms));
 
-export const numberIsValid = (n: number | null | undefined) => {
+export const numberIsValid = (n: number | null | undefined): n is number => {
 	return n !== undefined && n !== null && !isNaN(n);
 };

@@ -13,7 +13,8 @@
 
 	type ReceivedTaskDataType = {
 		cpuUsage: number;
-		maxStackUsage: number;
+		minFreeStack: number;
+		stackSize?: number;
 	};
 
 	type WsData = {
@@ -34,9 +35,10 @@
 	type TaskTableData = {
 		name: string;
 		cpuUsage: number;
-		maxStackUsage: number;
-		maxStackUsagePercent: number;
-		stackSize: number;
+		minFreeStack: number;
+		maxStackUsage?: number;
+		maxStackUsagePercent?: number;
+		stackSize?: number;
 		absentCounter: number;
 	};
 
@@ -152,8 +154,8 @@
 			Object.entries(receivedTaskData).filter(
 				([name, taskData]) =>
 					numberIsValid(taskData.cpuUsage) &&
-					numberIsValid(taskData.maxStackUsage) &&
-					numberIsValid(stackSizes[name]),
+					numberIsValid(taskData.minFreeStack) &&
+					name != "main",
 			),
 		);
 		for (const taskRecord of newTaskTableData) {
@@ -166,24 +168,40 @@
 			const serviceStatus = newTaskTableData.find(
 				(serviceStatus) => serviceStatus.name == name,
 			);
+			const maxStackUsage = numberIsValid(stackSizes[name])
+				? stackSizes[name] - receivedTaskData[name].minFreeStack
+				: undefined;
 			if (!serviceStatus) {
 				newTaskTableData.push({
 					name: name,
 					cpuUsage: receivedTaskData[name].cpuUsage,
-					maxStackUsage: receivedTaskData[name].maxStackUsage * 4,
-					stackSize: stackSizes[name] * 4,
+					minFreeStack: receivedTaskData[name].minFreeStack * 4,
+					maxStackUsage: numberIsValid(maxStackUsage)
+						? maxStackUsage * 4
+						: undefined,
+					stackSize: numberIsValid(stackSizes[name])
+						? stackSizes[name] * 4
+						: undefined,
 					maxStackUsagePercent:
-						(receivedTaskData[name].maxStackUsage / stackSizes[name]) * 100,
+						stackSizes[name] && numberIsValid(maxStackUsage)
+							? (maxStackUsage / stackSizes[name]) * 100
+							: undefined,
 					absentCounter: 0,
 				});
 			} else {
 				serviceStatus.name = name;
 				serviceStatus.cpuUsage = receivedTaskData[name].cpuUsage;
-				serviceStatus.maxStackUsage = receivedTaskData[name].maxStackUsage * 4;
-				serviceStatus.stackSize = stackSizes[name] * 4;
+				serviceStatus.maxStackUsage = numberIsValid(maxStackUsage)
+					? maxStackUsage * 4
+					: undefined;
+				serviceStatus.stackSize = numberIsValid(stackSizes[name])
+					? stackSizes[name] * 4
+					: undefined;
 				serviceStatus.absentCounter = 0;
 				serviceStatus.maxStackUsagePercent =
-					(receivedTaskData[name].maxStackUsage / stackSizes[name]) * 100;
+					stackSizes[name] && numberIsValid(maxStackUsage)
+						? (maxStackUsage / stackSizes[name]) * 100
+						: undefined;
 			}
 		}
 
@@ -193,13 +211,19 @@
 		if (totalRecordIndex >= 0) {
 			newTaskTableData.splice(totalRecordIndex, 1);
 		}
+
 		const newTotal = newTaskTableData.reduce(
 			(acc, curr) => {
 				return {
 					name: "total",
 					cpuUsage: acc.cpuUsage + curr.cpuUsage,
-					maxStackUsage: acc.maxStackUsage + curr.maxStackUsage,
-					stackSize: acc.stackSize + curr.stackSize,
+					maxStackUsage:
+						acc.maxStackUsage! +
+						(numberIsValid(curr.maxStackUsage) ? curr.maxStackUsage : 0),
+					minFreeStack: acc.minFreeStack + curr.minFreeStack,
+					stackSize:
+						acc.stackSize! +
+						(numberIsValid(curr.stackSize) ? curr.stackSize : 0),
 					absentCounter: 0,
 					maxStackUsagePercent: 0,
 				};
@@ -211,11 +235,12 @@
 				stackSize: 0,
 				absentCounter: 0,
 				maxStackUsagePercent: 0,
+				minFreeStack: 0,
 			},
 		);
 
 		newTotal.maxStackUsagePercent =
-			(newTotal.maxStackUsage / newTotal.stackSize) * 100;
+			(newTotal.maxStackUsage! / newTotal.stackSize!) * 100;
 
 		newTaskTableData.push(newTotal);
 		return newTaskTableData;
@@ -228,17 +253,22 @@
 		const imuData = data.imu;
 		const motorData = data.motor;
 		const t = data.microseconds;
-
+		console.log(data);
 		if (imuData) appendImuData(imuData, t);
 		if (motorData) appendMotorData(motorData, t);
 		if (stmTaskData) {
-			stmTaskTableData = updateTaskTable(
-				stmTaskTableData,
-				stmTaskData,
-				stmTaskStackSizes,
-			);
+			// stmTaskTableData = updateTaskTable(
+			// 	stmTaskTableData,
+			// 	stmTaskData,
+			// 	stmTaskStackSizes,
+			// );
 		}
 		if (espTaskData) {
+			for (const task_name in espTaskData) {
+				if (espTaskData[task_name].stackSize) {
+					espTaskStackSizes[task_name] = espTaskData[task_name].stackSize;
+				}
+			}
 			espTaskTableData = updateTaskTable(
 				espTaskTableData,
 				espTaskData,
@@ -247,6 +277,13 @@
 		}
 
 		// serviceStatusData.sort((a, b) => b.cpuUsage - a.cpuUsage);
+	};
+
+	const percentToLightness = (percent: number) => {
+		const x = percent / 100;
+		const y = x; 
+		const lightness = 100 - y * 50;
+		return lightness;
 	};
 
 	const formatMemorySize = (size: number) => {
@@ -369,12 +406,13 @@
 						<Table.Head class="w-[100px]">Service</Table.Head>
 						<Table.Head>CPU Usage</Table.Head>
 						<Table.Head>Stack (%)</Table.Head>
-						<Table.Head>Stack</Table.Head>
+						<Table.Head>Stack Used</Table.Head>
+						<Table.Head>Stack Free</Table.Head>
 						<Table.Head>Stack Size</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
-					{#each stmTaskTableData as serviceStatus (serviceStatus)}
+					<!-- {#each stmTaskTableData as serviceStatus (serviceStatus)}
 						<Table.Row>
 							<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell>
 							<Table.Cell
@@ -382,18 +420,27 @@
 								>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
 							>
 							<Table.Cell
-								style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.maxStackUsagePercent + 1) / Math.log10(101)), 40)}%);`}
+								style={`background-color: hsl(44, 100%, ${serviceStatus.maxStackUsagePercent ? Math.max(100 - 50 * (Math.log10(serviceStatus.maxStackUsagePercent + 1) / Math.log10(101)), 40) : 100}%);`}
 							>
-								{serviceStatus.maxStackUsagePercent.toFixed(2)}%
+								{numberIsValid(serviceStatus.maxStackUsagePercent)
+									? `${serviceStatus.maxStackUsagePercent.toFixed(2)}`
+									: "NA"}
 							</Table.Cell>
 							<Table.Cell>
-								{formatMemorySize(serviceStatus.maxStackUsage)}
+								{numberIsValid(serviceStatus.maxStackUsage)
+									? formatMemorySize(serviceStatus.maxStackUsage)
+									: "NA"}
 							</Table.Cell>
 							<Table.Cell>
-								{formatMemorySize(serviceStatus.stackSize)}
+								{formatMemorySize(serviceStatus.minFreeStack)}
+							</Table.Cell>
+							<Table.Cell>
+								{numberIsValid(serviceStatus.stackSize)
+									? formatMemorySize(serviceStatus.stackSize)
+									: "NA"}
 							</Table.Cell>
 						</Table.Row>
-					{/each}
+					{/each} -->
 				</Table.Body>
 			</Table.Root>
 		{/if}
@@ -412,7 +459,8 @@
 						<Table.Head class="w-[100px]">Service</Table.Head>
 						<Table.Head>CPU Usage</Table.Head>
 						<Table.Head>Stack (%)</Table.Head>
-						<Table.Head>Stack</Table.Head>
+						<Table.Head>Stack Used</Table.Head>
+						<Table.Head>Stack Free</Table.Head>
 						<Table.Head>Stack Size</Table.Head>
 					</Table.Row>
 				</Table.Header>
@@ -421,19 +469,28 @@
 						<Table.Row>
 							<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell>
 							<Table.Cell
-								style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.cpuUsage + 1) / Math.log10(101)), 40)}%);`}
+								style={`background-color: hsl(44, 100%, ${percentToLightness(serviceStatus.cpuUsage)}%);`}
 								>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
 							>
 							<Table.Cell
-								style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.maxStackUsagePercent + 1) / Math.log10(101)), 40)}%);`}
+								style={`background-color: hsl(44, 100%, ${serviceStatus.maxStackUsagePercent ? percentToLightness(serviceStatus.maxStackUsagePercent) : 100}%);`}
 							>
-								{serviceStatus.maxStackUsagePercent.toFixed(2)}%
+								{numberIsValid(serviceStatus.maxStackUsagePercent)
+									? `${serviceStatus.maxStackUsagePercent.toFixed(2)}%`
+									: "NA"}
 							</Table.Cell>
 							<Table.Cell>
-								{formatMemorySize(serviceStatus.maxStackUsage)}
+								{numberIsValid(serviceStatus.maxStackUsage)
+									? formatMemorySize(serviceStatus.maxStackUsage)
+									: "NA"}
 							</Table.Cell>
 							<Table.Cell>
-								{formatMemorySize(serviceStatus.stackSize)}
+								{formatMemorySize(serviceStatus.minFreeStack)}
+							</Table.Cell>
+							<Table.Cell>
+								{numberIsValid(serviceStatus.stackSize)
+									? formatMemorySize(serviceStatus.stackSize)
+									: "NA"}
 							</Table.Cell>
 						</Table.Row>
 					{/each}

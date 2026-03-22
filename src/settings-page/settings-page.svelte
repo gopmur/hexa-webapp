@@ -25,6 +25,9 @@
 
 	const getStatesFromApi = async () => {
 		const response = await fetch(`${API_ADDRESS}/api/states`);
+		if (!response.ok) {
+			throw new Error();
+		}
 		const responseData = await response.json();
 		return responseData as ManualStates;
 	};
