@@ -42,15 +42,15 @@
 	let wifiSsid = "";
 
 	const restart = async () => {
-		fetch(`${API_ADDRESS}/api/restart`);
+		await fetch(`${API_ADDRESS}/api/restart`);
 		window.location.reload();
 	};
 	const restartEsp = async () => {
-		fetch(`${API_ADDRESS}/api/restart/esp`);
+		await fetch(`${API_ADDRESS}/api/restart/esp`);
 		window.location.reload();
 	};
 	const restartStm = async () => {
-		fetch(`${API_ADDRESS}/api/restart/stm`);
+		await fetch(`${API_ADDRESS}/api/restart/stm`);
 		window.location.reload();
 	};
 

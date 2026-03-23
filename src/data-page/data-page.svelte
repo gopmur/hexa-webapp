@@ -17,6 +17,13 @@
 		stackSize?: number;
 	};
 
+	type ReceivedHeapDataType = {
+		free: number;
+		minFree: number;
+		totalSize: number;
+		largestBlock: number;
+	};
+
 	type WsData = {
 		imu?: {
 			x: number;
@@ -29,6 +36,7 @@
 			leftPosition: number;
 			rightPosition: number;
 		};
+		espHeap?: ReceivedHeapDataType;
 		microseconds: number;
 	};
 
@@ -55,6 +63,8 @@
 		z: number;
 	};
 
+	type HeapChartDataType = ReceivedHeapDataType & { t: number };
+
 	type MotorData = {
 		rightPosition: number;
 		leftPosition: number;
@@ -77,12 +87,26 @@
 
 	let imuChartData: ImuChartData[] = [];
 	let motorChartData: MotorChartData[] = [];
+	let heapChartData: HeapChartDataType[] = [];
 	let stmTaskStackSizes: StackSizeResponse;
 	let espTaskStackSizes: StackSizeResponse;
 	let espStackSizesLoading = true;
 	let stmStackSizesLoading = true;
 
 	const MAX_POINTS = 200;
+
+	const appendHeapData = (heapData: ReceivedHeapDataType, t: number) => {
+		const newPoint = {
+			t: t / 1000,
+			...heapData,
+		};
+
+		heapChartData = [...heapChartData, newPoint];
+
+		if (heapChartData.length > MAX_POINTS) {
+			heapChartData = heapChartData.slice(1);
+		}
+	};
 
 	const appendImuData = (imuData: ImuData, t: number) => {
 		const newPoint = {
@@ -139,6 +163,16 @@
 			}
 		}
 		espStackSizesLoading = false;
+	};
+
+	const getMeanDiff = (x: number[]) => {
+		let diffSum = 0;
+		let count = 0;
+		for (let i = 0; i < x.length - 1; i++) {
+			diffSum += Math.abs(x[i + 1] - x[i]);
+			count++;
+		}
+		return diffSum / count;
 	};
 
 	getStmStackSizes();
@@ -252,8 +286,9 @@
 		const espTaskData = data.espCpuUsage;
 		const imuData = data.imu;
 		const motorData = data.motor;
+		const heapData = data.espHeap;
 		const t = data.microseconds;
-		console.log(data);
+		if (heapData) appendHeapData(heapData, t);
 		if (imuData) appendImuData(imuData, t);
 		if (motorData) appendMotorData(motorData, t);
 		if (stmTaskData) {
@@ -280,8 +315,9 @@
 	};
 
 	const percentToLightness = (percent: number) => {
+		percent = Math.min(percent, 100);
 		const x = percent / 100;
-		const y = x; 
+		const y = x;
 		const lightness = 100 - y * 50;
 		return lightness;
 	};
@@ -298,6 +334,9 @@
 	};
 
 	$: if (readDataStream) {
+		imuChartData = [];
+		motorChartData = [];
+		heapChartData = [];
 		if (dataTab == "esp-task-data") {
 			fetch(`${API_ADDRESS}/api/streams/start/esp_cpu_usage`);
 		}
@@ -353,6 +392,23 @@
 			key: "rightPosition",
 			label: "Right position",
 			color: "red",
+		},
+	];
+	const heapSeries = [
+		{
+			key: "free",
+			label: "Free",
+			color: "red",
+		},
+		{
+			key: "minFree",
+			label: "Minimum free",
+			color: "orange",
+		},
+		{
+			key: "largestBlock",
+			label: "Largest block",
+			color: "blue",
 		},
 	];
 
@@ -453,49 +509,71 @@
 				</div>
 			</div>
 		{:else}
-			<Table.Root>
-				<Table.Header>
-					<Table.Row>
-						<Table.Head class="w-[100px]">Service</Table.Head>
-						<Table.Head>CPU Usage</Table.Head>
-						<Table.Head>Stack (%)</Table.Head>
-						<Table.Head>Stack Used</Table.Head>
-						<Table.Head>Stack Free</Table.Head>
-						<Table.Head>Stack Size</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#each espTaskTableData as serviceStatus (serviceStatus)}
+			<div class="max-h-2/3 overflow-scroll">
+				<Table.Root>
+					<Table.Header>
 						<Table.Row>
-							<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell>
-							<Table.Cell
-								style={`background-color: hsl(44, 100%, ${percentToLightness(serviceStatus.cpuUsage)}%);`}
-								>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
-							>
-							<Table.Cell
-								style={`background-color: hsl(44, 100%, ${serviceStatus.maxStackUsagePercent ? percentToLightness(serviceStatus.maxStackUsagePercent) : 100}%);`}
-							>
-								{numberIsValid(serviceStatus.maxStackUsagePercent)
-									? `${serviceStatus.maxStackUsagePercent.toFixed(2)}%`
-									: "NA"}
-							</Table.Cell>
-							<Table.Cell>
-								{numberIsValid(serviceStatus.maxStackUsage)
-									? formatMemorySize(serviceStatus.maxStackUsage)
-									: "NA"}
-							</Table.Cell>
-							<Table.Cell>
-								{formatMemorySize(serviceStatus.minFreeStack)}
-							</Table.Cell>
-							<Table.Cell>
-								{numberIsValid(serviceStatus.stackSize)
-									? formatMemorySize(serviceStatus.stackSize)
-									: "NA"}
-							</Table.Cell>
+							<Table.Head>Service</Table.Head>
+							<Table.Head>CPU Usage</Table.Head>
+							<Table.Head>Stack (%)</Table.Head>
+							<Table.Head class="max-sm:hidden">Stack Used</Table.Head>
+							<Table.Head>Stack Free</Table.Head>
+							<Table.Head class="max-sm:hidden">Stack Size</Table.Head>
 						</Table.Row>
-					{/each}
-				</Table.Body>
-			</Table.Root>
+					</Table.Header>
+					<Table.Body>
+						{#each espTaskTableData as serviceStatus (serviceStatus)}
+							<Table.Row>
+								<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell
+								>
+								<Table.Cell
+									style={`background-color: hsl(44, 100%, ${percentToLightness(serviceStatus.cpuUsage)}%);`}
+									>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
+								>
+								<Table.Cell
+									style={`background-color: hsl(44, 100%, ${serviceStatus.maxStackUsagePercent ? percentToLightness(serviceStatus.maxStackUsagePercent) : 100}%);`}
+								>
+									{numberIsValid(serviceStatus.maxStackUsagePercent)
+										? `${serviceStatus.maxStackUsagePercent.toFixed(2)}%`
+										: "NA"}
+								</Table.Cell>
+								<Table.Cell class="max-sm:hidden">
+									{numberIsValid(serviceStatus.maxStackUsage)
+										? formatMemorySize(serviceStatus.maxStackUsage)
+										: "NA"}
+								</Table.Cell>
+								<Table.Cell>
+									{formatMemorySize(serviceStatus.minFreeStack)}
+								</Table.Cell>
+								<Table.Cell class="max-sm:hidden">
+									{numberIsValid(serviceStatus.stackSize)
+										? formatMemorySize(serviceStatus.stackSize)
+										: "NA"}
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</div>
+			<Chart.Container config={chartConfig}>
+				<LineChart
+					data={heapChartData}
+					x="t"
+					axis="x"
+					series={heapSeries}
+					props={{
+						highlight: { points: false },
+					}}
+					xDomain={[
+						heapChartData.at(0)?.t,
+						heapChartData.length < 200
+							? Number(heapChartData.at(0)?.t) +
+								getMeanDiff(heapChartData.map((p) => p.t)) * 200
+							: heapChartData.at(-1)?.t,
+					]}
+					tooltip={false}
+				></LineChart>
+			</Chart.Container>
 		{/if}
 	</Tabs.Content>
 	<Tabs.Content
@@ -519,8 +597,9 @@
 						yDomain={[-180, 180]}
 						xDomain={[
 							imuChartData.at(0)?.t,
-							Number(imuChartData.at(-1)?.t) < 200
-								? 200
+							imuChartData.length < 200
+								? Number(imuChartData.at(0)?.t) +
+									getMeanDiff(imuChartData.map((p) => p.t)) * 200
 								: imuChartData.at(-1)?.t,
 						]}
 						tooltip={false}
@@ -545,8 +624,9 @@
 						yDomain={[-180, 180]}
 						xDomain={[
 							imuChartData.at(0)?.t,
-							Number(imuChartData.at(-1)?.t) < 200
-								? 200
+							imuChartData.length < 200
+								? Number(imuChartData.at(0)?.t) +
+									getMeanDiff(imuChartData.map((p) => p.t)) * 200
 								: imuChartData.at(-1)?.t,
 						]}
 						tooltip={false}
@@ -571,8 +651,9 @@
 						yDomain={[-180, 180]}
 						xDomain={[
 							imuChartData.at(0)?.t,
-							Number(imuChartData.at(-1)?.t) < 200
-								? 200
+							imuChartData.length < 200
+								? Number(imuChartData.at(0)?.t) +
+									getMeanDiff(imuChartData.map((p) => p.t)) * 200
 								: imuChartData.at(-1)?.t,
 						]}
 						tooltip={false}
@@ -602,8 +683,9 @@
 						yDomain={[32000, 39000]}
 						xDomain={[
 							motorChartData.at(0)?.t,
-							Number(motorChartData.at(-1)?.t) < 200
-								? 200
+							motorChartData.length < 200
+								? Number(motorChartData.at(0)?.t) +
+									getMeanDiff(motorChartData.map((p) => p.t)) * 200
 								: motorChartData.at(-1)?.t,
 						]}
 						tooltip={false}
@@ -628,8 +710,9 @@
 						yDomain={[32000, 39000]}
 						xDomain={[
 							motorChartData.at(0)?.t,
-							Number(motorChartData.at(-1)?.t) < 200
-								? 200
+							motorChartData.length < 200
+								? Number(motorChartData.at(0)?.t) +
+									getMeanDiff(motorChartData.map((p) => p.t)) * 200
 								: motorChartData.at(-1)?.t,
 						]}
 						tooltip={false}
