@@ -11,7 +11,13 @@
 	export let readDataStream: boolean = false;
 	export let ws: WebSocket;
 
-	type ReceivedTaskDataType = {
+	type ReceivedEspTaskDataType = {
+		cpuUsage: number;
+		minFreeStack: number;
+		stackSize?: number;
+	};
+
+	type ReceivedStmTaskDataType = {
 		cpuUsage: number;
 		minFreeStack: number;
 		stackSize?: number;
@@ -30,8 +36,8 @@
 			y: number;
 			z: number;
 		};
-		stmCpuUsage?: Record<string, ReceivedTaskDataType>;
-		espCpuUsage?: Record<string, ReceivedTaskDataType>;
+		stmCpuUsage?: Record<string, ReceivedStmTaskDataType>;
+		espCpuUsage?: Record<string, ReceivedEspTaskDataType>;
 		motor?: {
 			leftPosition: number;
 			rightPosition: number;
@@ -180,7 +186,7 @@
 
 	const updateTaskTable = (
 		taskTableData: TaskTableData[],
-		receivedTaskData: Record<string, ReceivedTaskDataType>,
+		receivedTaskData: Record<string, ReceivedEspTaskDataType>,
 		stackSizes: Record<string, number>,
 	) => {
 		let newTaskTableData = structuredClone(taskTableData);
@@ -196,7 +202,7 @@
 			taskRecord.absentCounter++;
 		}
 		newTaskTableData = newTaskTableData.filter(
-			(serviceStatus) => serviceStatus.absentCounter < 10,
+			(serviceStatus) => serviceStatus.absentCounter < 1,
 		);
 		for (const name in receivedTaskData) {
 			const serviceStatus = newTaskTableData.find(
@@ -292,11 +298,11 @@
 		if (imuData) appendImuData(imuData, t);
 		if (motorData) appendMotorData(motorData, t);
 		if (stmTaskData) {
-			// stmTaskTableData = updateTaskTable(
-			// 	stmTaskTableData,
-			// 	stmTaskData,
-			// 	stmTaskStackSizes,
-			// );
+			stmTaskTableData = updateTaskTable(
+				stmTaskTableData,
+				stmTaskData,
+				stmTaskStackSizes,
+			);
 		}
 		if (espTaskData) {
 			for (const task_name in espTaskData) {
@@ -459,30 +465,30 @@
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head class="w-[100px]">Service</Table.Head>
+						<Table.Head>Service</Table.Head>
 						<Table.Head>CPU Usage</Table.Head>
 						<Table.Head>Stack (%)</Table.Head>
-						<Table.Head>Stack Used</Table.Head>
+						<Table.Head class="max-sm:hidden">Stack Used</Table.Head>
 						<Table.Head>Stack Free</Table.Head>
-						<Table.Head>Stack Size</Table.Head>
+						<Table.Head class="max-sm:hidden">Stack Size</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
-					<!-- {#each stmTaskTableData as serviceStatus (serviceStatus)}
+					{#each stmTaskTableData as serviceStatus (serviceStatus)}
 						<Table.Row>
 							<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell>
 							<Table.Cell
-								style={`background-color: hsl(44, 100%, ${Math.max(100 - 50 * (Math.log10(serviceStatus.cpuUsage + 1) / Math.log10(101)), 40)}%);`}
+								style={`background-color: hsl(44, 100%, ${percentToLightness(serviceStatus.cpuUsage)}%);`}
 								>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
 							>
 							<Table.Cell
-								style={`background-color: hsl(44, 100%, ${serviceStatus.maxStackUsagePercent ? Math.max(100 - 50 * (Math.log10(serviceStatus.maxStackUsagePercent + 1) / Math.log10(101)), 40) : 100}%);`}
+								style={`background-color: hsl(44, 100%, ${serviceStatus.maxStackUsagePercent ? percentToLightness(serviceStatus.maxStackUsagePercent) : 100}%);`}
 							>
 								{numberIsValid(serviceStatus.maxStackUsagePercent)
-									? `${serviceStatus.maxStackUsagePercent.toFixed(2)}`
+									? `${serviceStatus.maxStackUsagePercent.toFixed(2)}%`
 									: "NA"}
 							</Table.Cell>
-							<Table.Cell>
+							<Table.Cell class="max-sm:hidden">
 								{numberIsValid(serviceStatus.maxStackUsage)
 									? formatMemorySize(serviceStatus.maxStackUsage)
 									: "NA"}
@@ -490,13 +496,13 @@
 							<Table.Cell>
 								{formatMemorySize(serviceStatus.minFreeStack)}
 							</Table.Cell>
-							<Table.Cell>
+							<Table.Cell class="max-sm:hidden">
 								{numberIsValid(serviceStatus.stackSize)
 									? formatMemorySize(serviceStatus.stackSize)
 									: "NA"}
 							</Table.Cell>
 						</Table.Row>
-					{/each} -->
+					{/each}
 				</Table.Body>
 			</Table.Root>
 		{/if}
