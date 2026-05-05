@@ -106,7 +106,7 @@
 <div class="w-full h-full flex flex-col items-center">
 	{#if !loading}
 		<Tabs.Root value={mode} class="w-full" onValueChange={onModeChange}>
-			<Tabs.List class="w-full rounded-none h-20">
+			<Tabs.List class="w-full rounded-none min-h-20">
 				<Tabs.Trigger class="flex flex-col" value="manual">Manual</Tabs.Trigger>
 				<Tabs.Trigger class="flex flex-col" value="automatic">
 					Automatic

@@ -15,6 +15,7 @@
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
 	import { Spinner } from "$lib/components/ui/spinner/index.js";
 	import { onMount } from "svelte";
+	import * as Accordion from "$lib/components/ui/accordion/index.js";
 
 	type WifiScanRecordType = {
 		rssi: number;
@@ -104,8 +105,8 @@
 		</div>
 		<div class="flex gap-4">
 			<Dialog.Root>
-				<Dialog.Content class="min-h-2/3 max-h-2/3 flex flex-col">
-					<Dialog.Header>
+				<Dialog.Content class="min-h-2/3 max-h-2/3 flex flex-col p-0">
+					<Dialog.Header class="mt-6 mx-6">
 						<Dialog.Title>WIFI</Dialog.Title>
 						<Dialog.Description class="px-8">
 							<Button class="flex gap-2" onclick={scanWifi}>
@@ -117,32 +118,42 @@
 						</Dialog.Description>
 					</Dialog.Header>
 					<div
-						class="flex flex-col items-center gap-2 max-h-full h-full w-full overflow-y-scroll"
+						class="flex flex-col items-center gap-2 mx-w-full overflow-y-scroll mb-6 box-border"
 					>
-						{#each wifis as wifi (wifi)}
-							<Button
-								class="w-4/5 flex justify-between"
-								variant={`${wifi.bssid == connectedWifiBssid ? "default" : "outline"}`}
+						<div class="px-6">
+							<Accordion.Root
+								type="single"
+								class="w-full sm:max-w-[70%] overflow-hidden"
+								value="item-1"
 							>
-								<div class="flex gap-2">
-									{#if wifi.rssi > -50}
-										<Wifi />
-									{:else if wifi.rssi > -70}
-										<WifiHigh />
-									{:else if wifi.rssi > -80}
-										<WifiLow />
-									{:else}
-										<WifiZero />
-									{/if}
-									{wifi.ssid}
-								</div>
-								<div>
-									{#if !wifi.open}
-										<Lock />
-									{/if}
-								</div>
-							</Button>
-						{/each}
+								{#each wifis as wifi (wifi)}
+									<Accordion.Item value={wifi.bssid}>
+										<Accordion.Trigger enableIcon={false}
+											><div class="flex gap-2">
+												{#if wifi.rssi > -50}
+													<Wifi />
+												{:else if wifi.rssi > -70}
+													<WifiHigh />
+												{:else if wifi.rssi > -80}
+													<WifiLow />
+												{:else}
+													<WifiZero />
+												{/if}
+												{wifi.ssid}
+											</div>
+											<div>
+												{#if !wifi.open}
+													<Lock />
+												{/if}
+											</div></Accordion.Trigger
+										>
+										<Accordion.Content class="flex flex-col gap-4 text-balance">
+											<p>Password</p>
+										</Accordion.Content>
+									</Accordion.Item>
+								{/each}
+							</Accordion.Root>
+						</div>
 					</div>
 				</Dialog.Content>
 				<Dialog.Trigger onclick={scanWifi}>
