@@ -577,7 +577,6 @@
 								getMeanDiff(heapChartData.map((p) => p.t)) * 200
 							: heapChartData.at(-1)?.t,
 					]}
-					tooltip={false}
 				></LineChart>
 			</Chart.Container>
 		{/if}
@@ -608,7 +607,7 @@
 									getMeanDiff(imuChartData.map((p) => p.t)) * 200
 								: imuChartData.at(-1)?.t,
 						]}
-						tooltip={false}
+						
 					></LineChart>
 				</Chart.Container>
 			</div>
@@ -635,7 +634,7 @@
 									getMeanDiff(imuChartData.map((p) => p.t)) * 200
 								: imuChartData.at(-1)?.t,
 						]}
-						tooltip={false}
+						
 					></LineChart>
 				</Chart.Container>
 			</div>
@@ -662,7 +661,7 @@
 									getMeanDiff(imuChartData.map((p) => p.t)) * 200
 								: imuChartData.at(-1)?.t,
 						]}
-						tooltip={false}
+						
 					></LineChart>
 				</Chart.Container>
 			</div>
@@ -694,7 +693,7 @@
 									getMeanDiff(motorChartData.map((p) => p.t)) * 200
 								: motorChartData.at(-1)?.t,
 						]}
-						tooltip={false}
+						
 					></LineChart>
 				</Chart.Container>
 			</div>
@@ -721,7 +720,7 @@
 									getMeanDiff(motorChartData.map((p) => p.t)) * 200
 								: motorChartData.at(-1)?.t,
 						]}
-						tooltip={false}
+						
 					></LineChart>
 				</Chart.Container>
 			</div>

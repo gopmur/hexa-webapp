@@ -27,6 +27,7 @@
 		| {
 				ssid: string;
 				rssi: number;
+				bssid: string;
 				connected: true;
 		  }
 		| {
@@ -38,8 +39,9 @@
 	let pendingWifiScan = false;
 	let wifiStatusLoading = true;
 	let wifiConnected = false;
-	let wifiRssi = 0;
-	let wifiSsid = "";
+	let connectedWifiRssi = 0;
+	let connectedWifiSsid = "";
+	let connectedWifiBssid = "";
 
 	const restart = async () => {
 		await fetch(`${API_ADDRESS}/api/restart`);
@@ -74,8 +76,9 @@
 		const connected_wifi: ConnectedWifiResponseType = await response.json();
 
 		if (connected_wifi.connected) {
-			wifiRssi = connected_wifi.rssi;
-			wifiSsid = connected_wifi.ssid;
+			connectedWifiRssi = connected_wifi.rssi;
+			connectedWifiSsid = connected_wifi.ssid;
+			connectedWifiBssid = connected_wifi.bssid;
 			wifiConnected = true;
 		} else {
 			wifiConnected = false;
@@ -117,7 +120,10 @@
 						class="flex flex-col items-center gap-2 max-h-full h-full w-full overflow-y-scroll"
 					>
 						{#each wifis as wifi (wifi)}
-							<Button class="w-4/5 flex justify-between" variant="outline">
+							<Button
+								class="w-4/5 flex justify-between"
+								variant={`${wifi.bssid == connectedWifiBssid ? "default" : "outline"}`}
+							>
 								<div class="flex gap-2">
 									{#if wifi.rssi > -50}
 										<Wifi />
@@ -143,11 +149,11 @@
 					<Button variant="default" size="icon">
 						{#if !wifiConnected}
 							<WifiOff class="size-6" />
-						{:else if wifiRssi > -50}
+						{:else if connectedWifiRssi > -50}
 							<Wifi class="size-6" />
-						{:else if wifiRssi > -70}
+						{:else if connectedWifiRssi > -70}
 							<WifiHigh class="size-6" />
-						{:else if wifiRssi > -80}
+						{:else if connectedWifiRssi > -80}
 							<WifiLow class="size-6" />
 						{:else}
 							<WifiZero class="size-6" />

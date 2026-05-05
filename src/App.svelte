@@ -39,7 +39,7 @@
 			<GaitAnalysisPage />
 		</Tabs.Content>
 
-		<Tabs.List class="w-full rounded-none h-20">
+		<Tabs.List class="w-full rounded-none min-h-20">
 			<Tabs.Trigger class="flex flex-col" value="settings">
 				<SettingsIcon class="size-6" /> Settings
 			</Tabs.Trigger>
