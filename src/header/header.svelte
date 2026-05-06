@@ -16,6 +16,7 @@
 	import { Spinner } from "$lib/components/ui/spinner/index.js";
 	import { onMount } from "svelte";
 	import * as Accordion from "$lib/components/ui/accordion/index.js";
+	import { Input } from "$lib/components/ui/input/index.js";
 
 	type WifiScanRecordType = {
 		rssi: number;
@@ -43,6 +44,8 @@
 	let connectedWifiRssi = 0;
 	let connectedWifiSsid = "";
 	let connectedWifiBssid = "";
+	let wifiPasswordInput = "";
+	let wifiSsidToConnect = "";
 
 	const restart = async () => {
 		await fetch(`${API_ADDRESS}/api/restart`);
@@ -88,6 +91,21 @@
 		if (connected_wifi) wifiStatusLoading = false;
 	};
 
+	const onSelectedWifiChange = (wifiBssid: string) => {
+		wifiSsidToConnect =
+			wifis.find((wifi) => wifi.bssid == wifiBssid)?.ssid || "";
+	};
+
+	const connectToWifi = async () => {
+		await fetch(`${API_ADDRESS}/api/wifi/connect`, {
+			method: "POST",
+			body: JSON.stringify({
+				ssid: wifiSsidToConnect,
+				password: wifiPasswordInput,
+			}),
+		});
+	};
+
 	onMount(() => {
 		getWifiStatus();
 		const interval = setInterval(getWifiStatus, 5000);
@@ -108,7 +126,7 @@
 				<Dialog.Content class="min-h-2/3 max-h-2/3 flex flex-col p-0">
 					<Dialog.Header class="mt-6 mx-6">
 						<Dialog.Title>WIFI</Dialog.Title>
-						<Dialog.Description class="px-8">
+						<Dialog.Description>
 							<Button class="flex gap-2" onclick={scanWifi}>
 								Scan
 								{#if pendingWifiScan}
@@ -117,44 +135,53 @@
 							</Button>
 						</Dialog.Description>
 					</Dialog.Header>
-					<div
-						class="flex flex-col items-center gap-2 mx-w-full overflow-y-scroll mb-6 box-border"
-					>
-						<div class="px-6">
-							<Accordion.Root
-								type="single"
-								class="w-full sm:max-w-[70%] overflow-hidden"
-								value="item-1"
-							>
-								{#each wifis as wifi (wifi)}
-									<Accordion.Item value={wifi.bssid}>
-										<Accordion.Trigger enableIcon={false}
-											><div class="flex gap-2">
-												{#if wifi.rssi > -50}
-													<Wifi />
-												{:else if wifi.rssi > -70}
-													<WifiHigh />
-												{:else if wifi.rssi > -80}
-													<WifiLow />
-												{:else}
-													<WifiZero />
-												{/if}
-												{wifi.ssid}
-											</div>
-											<div>
-												{#if !wifi.open}
-													<Lock />
-												{/if}
-											</div></Accordion.Trigger
-										>
-										<Accordion.Content class="flex flex-col gap-4 text-balance">
-											<p>Password</p>
-										</Accordion.Content>
-									</Accordion.Item>
-								{/each}
-							</Accordion.Root>
+					{#if wifis.length > 0}
+						<div
+							class="flex flex-col items-center gap-2 mx-w-full overflow-y-scroll mb-6 box-border"
+						>
+							<div class="w-full px-6">
+								<Accordion.Root
+									type="single"
+									class="w-full overflow-hidden"
+									onValueChange={onSelectedWifiChange}
+								>
+									{#each wifis as wifi (wifi)}
+										<Accordion.Item value={wifi.bssid}>
+											<Accordion.Trigger enableIcon={false}
+												><div class="flex gap-2">
+													{#if wifi.rssi > -50}
+														<Wifi />
+													{:else if wifi.rssi > -70}
+														<WifiHigh />
+													{:else if wifi.rssi > -80}
+														<WifiLow />
+													{:else}
+														<WifiZero />
+													{/if}
+													{wifi.ssid}
+												</div>
+												<div>
+													{#if !wifi.open}
+														<Lock />
+													{/if}
+												</div></Accordion.Trigger
+											>
+											<Accordion.Content
+												class="flex flex-row gap-4 text-balance pt-1"
+											>
+												<Input
+													type="password"
+													placeholder="Password"
+													bind:value={wifiPasswordInput}
+												/>
+												<Button onclick={connectToWifi}>Connect</Button>
+											</Accordion.Content>
+										</Accordion.Item>
+									{/each}
+								</Accordion.Root>
+							</div>
 						</div>
-					</div>
+					{/if}
 				</Dialog.Content>
 				<Dialog.Trigger onclick={scanWifi}>
 					<Button variant="default" size="icon">
