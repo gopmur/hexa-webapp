@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { Toaster as Sonner, type ToasterProps as SonnerProps } from "svelte-sonner";
 	import { mode } from "mode-watcher";
-	import RiLoaderLine from 'remixicon-svelte/icons/loader-line';
-	import RiCheckboxCircleLine from 'remixicon-svelte/icons/checkbox-circle-line';
-	import RiErrorWarningLine from 'remixicon-svelte/icons/error-warning-line';
-	import RiInformationLine from 'remixicon-svelte/icons/information-line';
-	import RiCloseCircleLine from 'remixicon-svelte/icons/close-circle-line';
+	import Loader2Icon from '@lucide/svelte/icons/loader-2';
+	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
+	import OctagonXIcon from '@lucide/svelte/icons/octagon-x';
+	import InfoIcon from '@lucide/svelte/icons/info';
+	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 
 	let { ...restProps }: SonnerProps = $props();
 </script>
@@ -17,18 +17,18 @@
 	{...restProps}
 >
 	{#snippet loadingIcon()}
-		<RiLoaderLine class="size-4 animate-spin" />
+		<Loader2Icon class="size-4 animate-spin" />
 	{/snippet}
 	{#snippet successIcon()}
-		<RiCheckboxCircleLine class="size-4" />
+		<CircleCheckIcon class="size-4" />
 	{/snippet}
 	{#snippet errorIcon()}
-		<RiErrorWarningLine class="size-4" />
+		<OctagonXIcon class="size-4" />
 	{/snippet}
 	{#snippet infoIcon()}
-		<RiInformationLine class="size-4" />
+		<InfoIcon class="size-4" />
 	{/snippet}
 	{#snippet warningIcon()}
-		<RiCloseCircleLine class="size-4" />
+		<TriangleAlertIcon class="size-4" />
 	{/snippet}
 </Sonner>

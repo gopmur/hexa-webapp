@@ -9,6 +9,7 @@
 	import SettingsPage from "./settings-page/settings-page.svelte";
 	import DataPage from "./data-page/data-page.svelte";
 	import { API_ADDRESS, WS_API_ADDRESS } from "./config";
+	import { ModeWatcher } from "mode-watcher";
 
 	let readDataStream = false;
 	let settingsPage = true;
@@ -20,6 +21,7 @@
 	const ws = new WebSocket(`${WS_API_ADDRESS}/api/data`);
 </script>
 
+<ModeWatcher />
 <main class="h-dvh w-screen flex flex-col">
 	<Header />
 	<Tabs.Root

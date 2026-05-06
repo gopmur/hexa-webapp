@@ -324,7 +324,7 @@
 		percent = Math.min(percent, 100);
 		const x = percent / 100;
 		const y = x;
-		const lightness = 100 - y * 50;
+		const lightness = y * 1;
 		return lightness;
 	};
 
@@ -478,11 +478,11 @@
 						<Table.Row>
 							<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell>
 							<Table.Cell
-								style={`background-color: hsl(44, 100%, ${percentToLightness(serviceStatus.cpuUsage)}%);`}
+								style={`background-color: rgba(255, 0, 0, ${percentToLightness(serviceStatus.cpuUsage)});`}
 								>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
 							>
 							<Table.Cell
-								style={`background-color: hsl(44, 100%, ${serviceStatus.maxStackUsagePercent ? percentToLightness(serviceStatus.maxStackUsagePercent) : 100}%);`}
+								style={`background-color: rgba(255, 0, 0, ${serviceStatus.maxStackUsagePercent ? percentToLightness(serviceStatus.maxStackUsagePercent) : 255});`}
 							>
 								{numberIsValid(serviceStatus.maxStackUsagePercent)
 									? `${serviceStatus.maxStackUsagePercent.toFixed(2)}%`

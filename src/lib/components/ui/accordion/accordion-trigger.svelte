@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { Accordion as AccordionPrimitive } from "bits-ui";
 	import { cn, type WithoutChild } from "$lib/utils.js";
-	import { HugeiconsIcon } from "@hugeicons/svelte";
-	import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
-	import { ArrowUp01Icon } from "@hugeicons/core-free-icons";
+	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+	import ChevronUpIcon from '@lucide/svelte/icons/chevron-up';
 
 	let {
 		ref = $bindable(null),
@@ -23,7 +22,7 @@
 		bind:ref
 		class={cn(
 			"**:data-[slot=accordion-trigger-icon]:text-muted-foreground gap-6 p-4 text-left text-sm font-medium hover:underline **:data-[slot=accordion-trigger-icon]:ml-auto **:data-[slot=accordion-trigger-icon]:size-4 group/accordion-trigger relative flex flex-1 items-start justify-between border border-transparent transition-all outline-none disabled:pointer-events-none disabled:opacity-50",
-			className,
+			className
 		)}
 		{...restProps}
 	>

@@ -7,6 +7,8 @@
 	import WifiZero from "@lucide/svelte/icons/wifi-zero";
 	import WifiOff from "@lucide/svelte/icons/wifi-off";
 	import RotateCw from "@lucide/svelte/icons/rotate-cw";
+	import EyeIcon from "@lucide/svelte/icons/eye";
+	import EyeClosedIcon from "@lucide/svelte/icons/eye-closed";
 	import Lock from "@lucide/svelte/icons/lock";
 	import BatteryFull from "@lucide/svelte/icons/battery-full";
 	import UserRoundIcon from "@lucide/svelte/icons/user-round";
@@ -17,6 +19,8 @@
 	import { onMount } from "svelte";
 	import * as Accordion from "$lib/components/ui/accordion/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
+	import { MoonIcon, SunIcon } from "lucide-svelte";
+	import { toggleMode } from "mode-watcher";
 
 	type WifiScanRecordType = {
 		rssi: number;
@@ -46,6 +50,9 @@
 	let connectedWifiBssid = "";
 	let wifiPasswordInput = "";
 	let wifiSsidToConnect = "";
+	let wifiConnectionError = false;
+	let wifiConnectionPending = false;
+	let passwordHidden = true;
 
 	const restart = async () => {
 		await fetch(`${API_ADDRESS}/api/restart`);
@@ -92,18 +99,37 @@
 	};
 
 	const onSelectedWifiChange = (wifiBssid: string) => {
+		wifiConnectionError = false;
+		wifiPasswordInput = "";
 		wifiSsidToConnect =
 			wifis.find((wifi) => wifi.bssid == wifiBssid)?.ssid || "";
 	};
 
 	const connectToWifi = async () => {
-		await fetch(`${API_ADDRESS}/api/wifi/connect`, {
+		wifiConnectionPending = true;
+		const response = await fetch(`${API_ADDRESS}/api/wifi/connect`, {
 			method: "POST",
 			body: JSON.stringify({
 				ssid: wifiSsidToConnect,
 				password: wifiPasswordInput,
 			}),
 		});
+		if (!response.ok) {
+			wifiConnectionError = true;
+		} else {
+			wifiConnectionError = false;
+			await getWifiStatus();
+		}
+		wifiConnectionPending = false;
+	};
+
+	const onPasswordVisiblityClick = () => {
+		passwordHidden = !passwordHidden;
+	};
+
+	const onDisconnectWifiClick = async () => {
+		await fetch(`${API_ADDRESS}/api/wifi/disconnect`);
+		await getWifiStatus();
 	};
 
 	onMount(() => {
@@ -125,7 +151,7 @@
 			<Dialog.Root>
 				<Dialog.Content class="min-h-2/3 max-h-2/3 flex flex-col p-0">
 					<Dialog.Header class="mt-6 mx-6">
-						<Dialog.Title>WIFI</Dialog.Title>
+						<Dialog.Title class="text-center">WIFI</Dialog.Title>
 						<Dialog.Description>
 							<Button class="flex gap-2" onclick={scanWifi}>
 								Scan
@@ -139,15 +165,46 @@
 						<div
 							class="flex flex-col items-center gap-2 mx-w-full overflow-y-scroll mb-6 box-border"
 						>
-							<div class="w-full px-6">
+							{#if wifiConnected}
+								<div class="w-full px-6 flex flex-col gap-2">
+									<p class="ml-2">Connected WiFis</p>
+									<Accordion.Root type="single" class="w-full overflow-hidden">
+										<Accordion.Item value={connectedWifiSsid}>
+											<Accordion.Trigger enableIcon={false}
+												><div class="flex gap-2">
+													{#if connectedWifiRssi > -50}
+														<Wifi />
+													{:else if connectedWifiRssi > -70}
+														<WifiHigh />
+													{:else if connectedWifiRssi > -80}
+														<WifiLow />
+													{:else}
+														<WifiZero />
+													{/if}
+													{connectedWifiSsid}
+												</div>
+											</Accordion.Trigger>
+											<Accordion.Content class="flex flex-col gap-4 pt-1 px-1">
+												<Button onclick={onDisconnectWifiClick}>
+													Disconnect
+												</Button>
+											</Accordion.Content>
+										</Accordion.Item>
+									</Accordion.Root>
+								</div>
+							{/if}
+							<div class="w-full px-6 flex flex-col gap-2">
+								<p class="ml-2">Scanned WiFis</p>
 								<Accordion.Root
 									type="single"
 									class="w-full overflow-hidden"
 									onValueChange={onSelectedWifiChange}
 								>
-									{#each wifis as wifi (wifi)}
+									{#each wifis.filter((wifi) => !wifiConnected || wifi.bssid != connectedWifiBssid) as wifi (wifi)}
 										<Accordion.Item value={wifi.bssid}>
-											<Accordion.Trigger enableIcon={false}
+											<Accordion.Trigger
+												enableIcon={false}
+												disabled={wifiConnectionPending}
 												><div class="flex gap-2">
 													{#if wifi.rssi > -50}
 														<Wifi />
@@ -166,15 +223,36 @@
 													{/if}
 												</div></Accordion.Trigger
 											>
-											<Accordion.Content
-												class="flex flex-row gap-4 text-balance pt-1"
-											>
-												<Input
-													type="password"
-													placeholder="Password"
-													bind:value={wifiPasswordInput}
-												/>
-												<Button onclick={connectToWifi}>Connect</Button>
+											<Accordion.Content class="flex flex-col gap-4 pt-1 px-1">
+												<div>
+													{#if wifiConnectionError}
+														<p class="text-destructive">Failed to connect!</p>
+													{/if}
+												</div>
+												<div class="flex flex-row gap-4">
+													<Button onclick={onPasswordVisiblityClick}>
+														{#if passwordHidden}
+															<EyeClosedIcon />
+														{:else}
+															<EyeIcon />
+														{/if}
+													</Button>
+													<Input
+														type={passwordHidden ? "password" : "text"}
+														placeholder="Password"
+														bind:value={wifiPasswordInput}
+													/>
+													<Button
+														onclick={connectToWifi}
+														disabled={wifiConnectionPending}
+													>
+														{#if wifiConnectionPending}
+															<Spinner />
+														{:else}
+															Connect
+														{/if}
+													</Button>
+												</div>
 											</Accordion.Content>
 										</Accordion.Item>
 									{/each}
@@ -203,9 +281,6 @@
 				<Dialog.Content class="flex flex-col">
 					<Dialog.Header>
 						<Dialog.Title>Power</Dialog.Title>
-						<!-- <Dialog.Description class="px-8">
-							
-						</Dialog.Description> -->
 					</Dialog.Header>
 					<Button onclick={restart}>
 						<RotateCw />
@@ -225,6 +300,15 @@
 			</Button>
 			<Button variant="default" size="icon">
 				<ThermometerIcon class="size-6" />
+			</Button>
+			<Button onclick={toggleMode} variant="outline" size="icon">
+				<SunIcon
+					class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 !transition-all dark:scale-0 dark:-rotate-90"
+				/>
+				<MoonIcon
+					class="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 !transition-all dark:scale-100 dark:rotate-0"
+				/>
+				<span class="sr-only">Toggle theme</span>
 			</Button>
 		</div>
 	</div>
