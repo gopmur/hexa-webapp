@@ -366,7 +366,7 @@
 		{
 			key: "x",
 			label: "x",
-			color: "red",
+			// color: "red",
 		},
 	];
 
@@ -374,7 +374,7 @@
 		{
 			key: "y",
 			label: "y",
-			color: "red",
+			// color: "red",
 		},
 	];
 
@@ -382,7 +382,7 @@
 		{
 			key: "z",
 			label: "z",
-			color: "red",
+			// color: "red",
 		},
 	];
 
@@ -482,7 +482,7 @@
 								>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
 							>
 							<Table.Cell
-								style={`background-color: rgba(255, 0, 0, ${serviceStatus.maxStackUsagePercent ? percentToLightness(serviceStatus.maxStackUsagePercent) : 255});`}
+								style={`background-color: rgba(255, 0, 0, ${serviceStatus.maxStackUsagePercent ? percentToLightness(serviceStatus.maxStackUsagePercent) : 0});`}
 							>
 								{numberIsValid(serviceStatus.maxStackUsagePercent)
 									? `${serviceStatus.maxStackUsagePercent.toFixed(2)}%`
@@ -533,11 +533,11 @@
 								<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell
 								>
 								<Table.Cell
-									style={`background-color: hsl(44, 100%, ${percentToLightness(serviceStatus.cpuUsage)}%);`}
+									style={`background-color: rgba(255, 0, 0, ${percentToLightness(serviceStatus.cpuUsage)});`}
 									>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
 								>
 								<Table.Cell
-									style={`background-color: hsl(44, 100%, ${serviceStatus.maxStackUsagePercent ? percentToLightness(serviceStatus.maxStackUsagePercent) : 100}%);`}
+									style={`background-color: rgba(255, 0, 0, ${serviceStatus.maxStackUsagePercent ? percentToLightness(serviceStatus.maxStackUsagePercent) : 0});`}
 								>
 									{numberIsValid(serviceStatus.maxStackUsagePercent)
 										? `${serviceStatus.maxStackUsagePercent.toFixed(2)}%`

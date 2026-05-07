@@ -143,7 +143,7 @@
 <header class="bg-accent w-full p-4">
 	<div class="flex justify-between items-center">
 		<div
-			class="w-fit h-fit rounded-full border-2 border-black flex justify-center items-center aspect-square"
+			class="w-fit h-fit rounded-full border-2  flex justify-center items-center aspect-square"
 		>
 			<UserRoundIcon class="size-6" />
 		</div>
@@ -153,10 +153,11 @@
 					<Dialog.Header class="mt-6 mx-6">
 						<Dialog.Title class="text-center">WIFI</Dialog.Title>
 						<Dialog.Description>
-							<Button class="flex gap-2" onclick={scanWifi}>
-								Scan
+							<Button class="flex gap-2" onclick={scanWifi} variant="secondary" disabled={pendingWifiScan}>
 								{#if pendingWifiScan}
-									<Spinner />
+								<Spinner />
+								{:else}
+								Scan
 								{/if}
 							</Button>
 						</Dialog.Description>
@@ -230,7 +231,7 @@
 													{/if}
 												</div>
 												<div class="flex flex-row gap-4">
-													<Button onclick={onPasswordVisiblityClick}>
+													<Button onclick={onPasswordVisiblityClick} variant="ghost">
 														{#if passwordHidden}
 															<EyeClosedIcon />
 														{:else}
@@ -262,17 +263,17 @@
 					{/if}
 				</Dialog.Content>
 				<Dialog.Trigger onclick={scanWifi}>
-					<Button variant="default" size="icon">
+					<Button variant="outline" size="icon-lg">
 						{#if !wifiConnected}
-							<WifiOff class="size-6" />
+							<WifiOff />
 						{:else if connectedWifiRssi > -50}
-							<Wifi class="size-6" />
+							<Wifi />
 						{:else if connectedWifiRssi > -70}
-							<WifiHigh class="size-6" />
+							<WifiHigh />
 						{:else if connectedWifiRssi > -80}
-							<WifiLow class="size-6" />
+							<WifiLow />
 						{:else}
-							<WifiZero class="size-6" />
+							<WifiZero />
 						{/if}</Button
 					>
 				</Dialog.Trigger>
@@ -282,31 +283,31 @@
 					<Dialog.Header>
 						<Dialog.Title>Power</Dialog.Title>
 					</Dialog.Header>
-					<Button onclick={restart}>
+					<Button variant="secondary" onclick={restart}>
 						<RotateCw />
 						Restart
 					</Button>
-					<Button onclick={restartEsp}><RotateCw />Restart ESP32</Button>
-					<Button onclick={restartStm}><RotateCw />Restart STM32</Button>
+					<Button variant="secondary" onclick={restartEsp}><RotateCw />Restart ESP32</Button>
+					<Button variant="secondary" onclick={restartStm}><RotateCw />Restart STM32</Button>
 				</Dialog.Content>
 				<Dialog.Trigger>
-					<Button variant="default" size="icon">
-						<PowerIcon class="size-6" />
+					<Button variant="outline" size="icon-lg">
+						<PowerIcon />
 					</Button>
 				</Dialog.Trigger>
 			</Dialog.Root>
-			<Button variant="default" size="icon">
-				<BatteryFull class="size-6" />
+			<Button variant="outline" size="icon-lg">
+				<BatteryFull />
 			</Button>
-			<Button variant="default" size="icon">
-				<ThermometerIcon class="size-6" />
+			<Button variant="outline" size="icon-lg">
+				<ThermometerIcon />
 			</Button>
-			<Button onclick={toggleMode} variant="outline" size="icon">
+			<Button onclick={toggleMode} variant="outline" size="icon-lg">
 				<SunIcon
-					class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 !transition-all dark:scale-0 dark:-rotate-90"
+					class="scale-100 rotate-0 !transition-all dark:scale-0 dark:-rotate-90"
 				/>
 				<MoonIcon
-					class="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 !transition-all dark:scale-100 dark:rotate-0"
+					class="absolute scale-0 rotate-90 !transition-all dark:scale-100 dark:rotate-0"
 				/>
 				<span class="sr-only">Toggle theme</span>
 			</Button>
