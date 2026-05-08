@@ -454,68 +454,15 @@
 		<Tabs.Trigger class="flex flex-col" value="motor">Motor</Tabs.Trigger>
 	</Tabs.List>
 
-	<Tabs.Content value="stm-task-data" class="overflow-y-scroll flex-1">
-		{#if stmStackSizesLoading}
-			<div class="h-full w-full flex items-center justify-center">
-				<div class="flex flex-col gap-4 items-center">
-					<Spinner class="size-40" />
+	<div class="overflow-y-scroll h-full">
+		<Tabs.Content value="stm-task-data" >
+			{#if stmStackSizesLoading}
+				<div class="h-full w-full flex items-center justify-center">
+					<div class="flex flex-col gap-4 items-center">
+						<Spinner class="size-40" />
+					</div>
 				</div>
-			</div>
-		{:else}
-			<Table.Root>
-				<Table.Header>
-					<Table.Row>
-						<Table.Head>Service</Table.Head>
-						<Table.Head>CPU Usage</Table.Head>
-						<Table.Head>Stack (%)</Table.Head>
-						<Table.Head class="max-sm:hidden">Stack Used</Table.Head>
-						<Table.Head>Stack Free</Table.Head>
-						<Table.Head class="max-sm:hidden">Stack Size</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#each stmTaskTableData as serviceStatus (serviceStatus)}
-						<Table.Row>
-							<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell>
-							<Table.Cell
-								style={`background-color: rgba(255, 0, 0, ${percentToLightness(serviceStatus.cpuUsage)});`}
-								>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
-							>
-							<Table.Cell
-								style={`background-color: rgba(255, 0, 0, ${serviceStatus.maxStackUsagePercent ? percentToLightness(serviceStatus.maxStackUsagePercent) : 0});`}
-							>
-								{numberIsValid(serviceStatus.maxStackUsagePercent)
-									? `${serviceStatus.maxStackUsagePercent.toFixed(2)}%`
-									: "NA"}
-							</Table.Cell>
-							<Table.Cell class="max-sm:hidden">
-								{numberIsValid(serviceStatus.maxStackUsage)
-									? formatMemorySize(serviceStatus.maxStackUsage)
-									: "NA"}
-							</Table.Cell>
-							<Table.Cell>
-								{formatMemorySize(serviceStatus.minFreeStack)}
-							</Table.Cell>
-							<Table.Cell class="max-sm:hidden">
-								{numberIsValid(serviceStatus.stackSize)
-									? formatMemorySize(serviceStatus.stackSize)
-									: "NA"}
-							</Table.Cell>
-						</Table.Row>
-					{/each}
-				</Table.Body>
-			</Table.Root>
-		{/if}
-	</Tabs.Content>
-	<Tabs.Content value="esp-task-data" class="overflow-y-scroll flex-1">
-		{#if espStackSizesLoading}
-			<div class="h-full w-full flex items-center justify-center">
-				<div class="flex flex-col gap-4 items-center">
-					<Spinner class="size-40" />
-				</div>
-			</div>
-		{:else}
-			<div class="max-h-2/3 overflow-scroll">
+			{:else}
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
@@ -528,16 +475,16 @@
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
-						{#each espTaskTableData as serviceStatus (serviceStatus)}
+						{#each stmTaskTableData as serviceStatus (serviceStatus)}
 							<Table.Row>
 								<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell
 								>
 								<Table.Cell
-									style={`background-color: rgba(255, 0, 0, ${percentToLightness(serviceStatus.cpuUsage)});`}
+									style={`background-color: oklch(0.795 0.184 86.047/ ${percentToLightness(serviceStatus.cpuUsage)});`}
 									>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
 								>
 								<Table.Cell
-									style={`background-color: rgba(255, 0, 0, ${serviceStatus.maxStackUsagePercent ? percentToLightness(serviceStatus.maxStackUsagePercent) : 0});`}
+									style={`background-color: oklch(0.795 0.184 86.047/ ${serviceStatus.maxStackUsagePercent ? percentToLightness(serviceStatus.maxStackUsagePercent) : 0});`}
 								>
 									{numberIsValid(serviceStatus.maxStackUsagePercent)
 										? `${serviceStatus.maxStackUsagePercent.toFixed(2)}%`
@@ -560,170 +507,222 @@
 						{/each}
 					</Table.Body>
 				</Table.Root>
-			</div>
-			<Chart.Container config={chartConfig}>
-				<LineChart
-					data={heapChartData}
-					x="t"
-					axis="x"
-					series={heapSeries}
-					props={{
-						highlight: { points: false },
-					}}
-					xDomain={[
-						heapChartData.at(0)?.t,
-						heapChartData.length < 200
-							? Number(heapChartData.at(0)?.t) +
-								getMeanDiff(heapChartData.map((p) => p.t)) * 200
-							: heapChartData.at(-1)?.t,
-					]}
-				></LineChart>
-			</Chart.Container>
-		{/if}
-	</Tabs.Content>
-	<Tabs.Content
-		value="imu"
-		class="overflow-y-scroll flex-1 flex flex-col gap-10"
-	>
-		<div class="flex">
-			<div class="w-10 flex justify-center items-center">
-				<p class="rotate-90">Pitch</p>
-			</div>
-			<div class="flex-1">
+			{/if}
+		</Tabs.Content>
+		<Tabs.Content value="esp-task-data" class="overflow-y-scroll flex-1">
+			{#if espStackSizesLoading}
+				<div class="h-full w-full flex items-center justify-center">
+					<div class="flex flex-col gap-4 items-center">
+						<Spinner class="size-40" />
+					</div>
+				</div>
+			{:else}
+				<div class="max-h-2/3 overflow-scroll">
+					<Table.Root>
+						<Table.Header>
+							<Table.Row>
+								<Table.Head>Service</Table.Head>
+								<Table.Head>CPU Usage</Table.Head>
+								<Table.Head>Stack (%)</Table.Head>
+								<Table.Head class="max-sm:hidden">Stack Used</Table.Head>
+								<Table.Head>Stack Free</Table.Head>
+								<Table.Head class="max-sm:hidden">Stack Size</Table.Head>
+							</Table.Row>
+						</Table.Header>
+						<Table.Body>
+							{#each espTaskTableData as serviceStatus (serviceStatus)}
+								<Table.Row>
+									<Table.Cell class="font-medium"
+										>{serviceStatus.name}</Table.Cell
+									>
+									<Table.Cell
+										style={`background-color: oklch(0.795 0.184 86.047/ ${percentToLightness(serviceStatus.cpuUsage)});`}
+										>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
+									>
+									<Table.Cell
+										style={`background-color: oklch(0.795 0.184 86.047/ ${serviceStatus.maxStackUsagePercent ? percentToLightness(serviceStatus.maxStackUsagePercent) : 0});`}
+									>
+										{numberIsValid(serviceStatus.maxStackUsagePercent)
+											? `${serviceStatus.maxStackUsagePercent.toFixed(2)}%`
+											: "NA"}
+									</Table.Cell>
+									<Table.Cell class="max-sm:hidden">
+										{numberIsValid(serviceStatus.maxStackUsage)
+											? formatMemorySize(serviceStatus.maxStackUsage)
+											: "NA"}
+									</Table.Cell>
+									<Table.Cell>
+										{formatMemorySize(serviceStatus.minFreeStack)}
+									</Table.Cell>
+									<Table.Cell class="max-sm:hidden">
+										{numberIsValid(serviceStatus.stackSize)
+											? formatMemorySize(serviceStatus.stackSize)
+											: "NA"}
+									</Table.Cell>
+								</Table.Row>
+							{/each}
+						</Table.Body>
+					</Table.Root>
+				</div>
 				<Chart.Container config={chartConfig}>
 					<LineChart
-						data={imuChartData}
+						data={heapChartData}
 						x="t"
 						axis="x"
-						series={imuXSeries}
+						series={heapSeries}
 						props={{
 							highlight: { points: false },
 						}}
-						yDomain={[-180, 180]}
 						xDomain={[
-							imuChartData.at(0)?.t,
-							imuChartData.length < 200
-								? Number(imuChartData.at(0)?.t) +
-									getMeanDiff(imuChartData.map((p) => p.t)) * 200
-								: imuChartData.at(-1)?.t,
+							heapChartData.at(0)?.t,
+							heapChartData.length < 200
+								? Number(heapChartData.at(0)?.t) +
+									getMeanDiff(heapChartData.map((p) => p.t)) * 200
+								: heapChartData.at(-1)?.t,
 						]}
-						
 					></LineChart>
 				</Chart.Container>
+			{/if}
+		</Tabs.Content>
+		<Tabs.Content
+			value="imu"
+			class="overflow-y-scroll flex-1 flex flex-col gap-10"
+		>
+			<div class="flex">
+				<div class="w-10 flex justify-center items-center">
+					<p class="rotate-90">Pitch</p>
+				</div>
+				<div class="flex-1">
+					<Chart.Container config={chartConfig}>
+						<LineChart
+							data={imuChartData}
+							x="t"
+							axis="x"
+							series={imuXSeries}
+							props={{
+								highlight: { points: false },
+							}}
+							yDomain={[-180, 180]}
+							xDomain={[
+								imuChartData.at(0)?.t,
+								imuChartData.length < 200
+									? Number(imuChartData.at(0)?.t) +
+										getMeanDiff(imuChartData.map((p) => p.t)) * 200
+									: imuChartData.at(-1)?.t,
+							]}
+						></LineChart>
+					</Chart.Container>
+				</div>
 			</div>
-		</div>
-		<div class="flex">
-			<div class="w-10 flex justify-center items-center">
-				<p class="rotate-90">Roll</p>
+			<div class="flex">
+				<div class="w-10 flex justify-center items-center">
+					<p class="rotate-90">Roll</p>
+				</div>
+				<div class="flex-1">
+					<Chart.Container config={chartConfig}>
+						<LineChart
+							data={imuChartData}
+							x="t"
+							axis="x"
+							series={imuYSeries}
+							props={{
+								highlight: { points: false },
+							}}
+							yDomain={[-180, 180]}
+							xDomain={[
+								imuChartData.at(0)?.t,
+								imuChartData.length < 200
+									? Number(imuChartData.at(0)?.t) +
+										getMeanDiff(imuChartData.map((p) => p.t)) * 200
+									: imuChartData.at(-1)?.t,
+							]}
+						></LineChart>
+					</Chart.Container>
+				</div>
 			</div>
-			<div class="flex-1">
-				<Chart.Container config={chartConfig}>
-					<LineChart
-						data={imuChartData}
-						x="t"
-						axis="x"
-						series={imuYSeries}
-						props={{
-							highlight: { points: false },
-						}}
-						yDomain={[-180, 180]}
-						xDomain={[
-							imuChartData.at(0)?.t,
-							imuChartData.length < 200
-								? Number(imuChartData.at(0)?.t) +
-									getMeanDiff(imuChartData.map((p) => p.t)) * 200
-								: imuChartData.at(-1)?.t,
-						]}
-						
-					></LineChart>
-				</Chart.Container>
+			<div class="flex">
+				<div class="w-10 flex justify-center items-center">
+					<p class="rotate-90">Yaw</p>
+				</div>
+				<div class="flex-1">
+					<Chart.Container config={chartConfig}>
+						<LineChart
+							data={imuChartData}
+							x="t"
+							axis="x"
+							series={imuZSeries}
+							props={{
+								highlight: { points: false },
+							}}
+							yDomain={[-180, 180]}
+							xDomain={[
+								imuChartData.at(0)?.t,
+								imuChartData.length < 200
+									? Number(imuChartData.at(0)?.t) +
+										getMeanDiff(imuChartData.map((p) => p.t)) * 200
+									: imuChartData.at(-1)?.t,
+							]}
+						></LineChart>
+					</Chart.Container>
+				</div>
 			</div>
-		</div>
-		<div class="flex">
-			<div class="w-10 flex justify-center items-center">
-				<p class="rotate-90">Yaw</p>
+		</Tabs.Content>
+		<Tabs.Content
+			value="motor"
+			class="overflow-y-scroll flex-1 flex flex-col gap-10"
+		>
+			<div class="flex">
+				<div class="w-10 flex justify-center items-center">
+					<p class="rotate-90">Right Position</p>
+				</div>
+				<div class="flex-1">
+					<Chart.Container config={chartConfig}>
+						<LineChart
+							data={motorChartData}
+							x="t"
+							axis="x"
+							series={motorRightSeries}
+							props={{
+								highlight: { points: false },
+							}}
+							yDomain={[32000, 39000]}
+							xDomain={[
+								motorChartData.at(0)?.t,
+								motorChartData.length < 200
+									? Number(motorChartData.at(0)?.t) +
+										getMeanDiff(motorChartData.map((p) => p.t)) * 200
+									: motorChartData.at(-1)?.t,
+							]}
+						></LineChart>
+					</Chart.Container>
+				</div>
 			</div>
-			<div class="flex-1">
-				<Chart.Container config={chartConfig}>
-					<LineChart
-						data={imuChartData}
-						x="t"
-						axis="x"
-						series={imuZSeries}
-						props={{
-							highlight: { points: false },
-						}}
-						yDomain={[-180, 180]}
-						xDomain={[
-							imuChartData.at(0)?.t,
-							imuChartData.length < 200
-								? Number(imuChartData.at(0)?.t) +
-									getMeanDiff(imuChartData.map((p) => p.t)) * 200
-								: imuChartData.at(-1)?.t,
-						]}
-						
-					></LineChart>
-				</Chart.Container>
+			<div class="flex">
+				<div class="w-10 flex justify-center items-center">
+					<p class="rotate-90">Left Position</p>
+				</div>
+				<div class="flex-1">
+					<Chart.Container config={chartConfig}>
+						<LineChart
+							data={motorChartData}
+							x="t"
+							axis="x"
+							series={motorLeftSeries}
+							props={{
+								highlight: { points: false },
+							}}
+							yDomain={[32000, 39000]}
+							xDomain={[
+								motorChartData.at(0)?.t,
+								motorChartData.length < 200
+									? Number(motorChartData.at(0)?.t) +
+										getMeanDiff(motorChartData.map((p) => p.t)) * 200
+									: motorChartData.at(-1)?.t,
+							]}
+						></LineChart>
+					</Chart.Container>
+				</div>
 			</div>
-		</div>
-	</Tabs.Content>
-	<Tabs.Content
-		value="motor"
-		class="overflow-y-scroll flex-1 flex flex-col gap-10"
-	>
-		<div class="flex">
-			<div class="w-10 flex justify-center items-center">
-				<p class="rotate-90">Right Position</p>
-			</div>
-			<div class="flex-1">
-				<Chart.Container config={chartConfig}>
-					<LineChart
-						data={motorChartData}
-						x="t"
-						axis="x"
-						series={motorRightSeries}
-						props={{
-							highlight: { points: false },
-						}}
-						yDomain={[32000, 39000]}
-						xDomain={[
-							motorChartData.at(0)?.t,
-							motorChartData.length < 200
-								? Number(motorChartData.at(0)?.t) +
-									getMeanDiff(motorChartData.map((p) => p.t)) * 200
-								: motorChartData.at(-1)?.t,
-						]}
-						
-					></LineChart>
-				</Chart.Container>
-			</div>
-		</div>
-		<div class="flex">
-			<div class="w-10 flex justify-center items-center">
-				<p class="rotate-90">Left Position</p>
-			</div>
-			<div class="flex-1">
-				<Chart.Container config={chartConfig}>
-					<LineChart
-						data={motorChartData}
-						x="t"
-						axis="x"
-						series={motorLeftSeries}
-						props={{
-							highlight: { points: false },
-						}}
-						yDomain={[32000, 39000]}
-						xDomain={[
-							motorChartData.at(0)?.t,
-							motorChartData.length < 200
-								? Number(motorChartData.at(0)?.t) +
-									getMeanDiff(motorChartData.map((p) => p.t)) * 200
-								: motorChartData.at(-1)?.t,
-						]}
-						
-					></LineChart>
-				</Chart.Container>
-			</div>
-		</div>
-	</Tabs.Content>
+		</Tabs.Content>
+	</div>
 </Tabs.Root>

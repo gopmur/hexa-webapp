@@ -98,7 +98,7 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
   --success: oklch(0.448 0.119 151.328);
-  --warning: oklch(0.795 0.184 86.047);
+  --warning: oklch(79.769% 0.16406 82.708);
 }
 
 @theme inline {
