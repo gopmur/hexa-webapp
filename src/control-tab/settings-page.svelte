@@ -103,10 +103,10 @@
 	};
 </script>
 
-<div class="w-full h-full flex flex-col items-center">
+<div class="w-full h-full flex-col items-center">
 	{#if !loading}
-		<Tabs.Root value={mode} class="w-full" onValueChange={onModeChange}>
-			<Tabs.List class="w-full rounded-none min-h-20">
+		<Tabs.Root value={mode} class="w-full flex flex-col" onValueChange={onModeChange}>
+			<Tabs.List class="w-full rounded-none min-h-20 max-h-20">
 				<Tabs.Trigger class="flex flex-col" value="manual">Manual</Tabs.Trigger>
 				<Tabs.Trigger class="flex flex-col" value="automatic">
 					Automatic
@@ -116,10 +116,11 @@
 				</Tabs.Trigger>
 				<Tabs.Trigger class="flex flex-col" value="smart">Smart</Tabs.Trigger>
 			</Tabs.List>
-			<Tabs.Content value="manual">
-				<div class="w-full flex justify-center">
-					<div class="flex justify-between w-40 pt-5">
-						<Slider
+			<div class="flex-1">
+				<Tabs.Content value="manual">
+					<div class="w-full flex justify-center">
+						<div class="flex justify-between w-40 pt-5">
+							<Slider
 							type="single"
 							bind:value={leftSliderValue}
 							max={10}
@@ -140,14 +141,16 @@
 					</div>
 				</div>
 			</Tabs.Content>
-		</Tabs.Root>
-		<div class="w-full h-full flex flex-col items-center justify-center">
-			<Button
-				onclick={onPowerClick}
-				class={`rounded-full h-40 w-40 active:transition-all active:scale-[0.98] ${running ? "bg-green-400" : "bg-red-500"}`}
-				><PowerIcon class="size-20" /></Button
-			>
+			<div class="w-full h-full flex flex-col items-center justify-center">
+				<Button
+					onclick={onPowerClick}
+					variant="default"
+					class={`rounded-full h-40 w-40 active:transition-all active:scale-[0.98] ${running ? "bg-success hover:bg-success" : "bg-destructive hover:bg-destructive"}`}
+					><PowerIcon class="size-20" /></Button
+				>
+			</div>
 		</div>
+		</Tabs.Root>
 	{:else}
 		<div class="h-full w-full flex items-center justify-center">
 			<div class="flex flex-col gap-4 items-center">
@@ -156,3 +159,4 @@
 		</div>
 	{/if}
 </div>
+

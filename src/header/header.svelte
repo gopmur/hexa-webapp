@@ -19,8 +19,11 @@
 	import { onMount } from "svelte";
 	import * as Accordion from "$lib/components/ui/accordion/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
-	import { MoonIcon, SunIcon } from "lucide-svelte";
+	import { MoonIcon, SettingsIcon, SunIcon } from "lucide-svelte";
 	import { toggleMode } from "mode-watcher";
+	import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
+	import type { HTMLTdAttributes } from "svelte/elements";
+	import { cn } from "$lib/utils";
 
 	type WifiScanRecordType = {
 		rssi: number;
@@ -138,12 +141,16 @@
 
 		return () => clearInterval(interval);
 	});
+
+	let {
+		class: classname
+	}: HTMLTdAttributes = $props();
 </script>
 
-<header class="bg-accent w-full p-4">
+<header class={cn("bg-accent w-full p-4", classname)}>
 	<div class="flex justify-between items-center">
 		<div
-			class="w-fit h-fit rounded-full border-2  flex justify-center items-center aspect-square"
+			class="w-fit h-fit rounded-full border-2 flex justify-center items-center aspect-square"
 		>
 			<UserRoundIcon class="size-6" />
 		</div>
@@ -153,112 +160,132 @@
 					<Dialog.Header class="mt-6 mx-6">
 						<Dialog.Title class="text-center">WIFI</Dialog.Title>
 						<Dialog.Description>
-							<Button class="flex gap-2" onclick={scanWifi} variant="secondary" disabled={pendingWifiScan}>
+							<Button
+								class="flex gap-2"
+								onclick={scanWifi}
+								variant="secondary"
+								disabled={pendingWifiScan}
+							>
 								{#if pendingWifiScan}
-								<Spinner />
+									<Spinner />
 								{:else}
-								Scan
+									Scan
 								{/if}
 							</Button>
 						</Dialog.Description>
 					</Dialog.Header>
 					{#if wifis.length > 0}
 						<div
-							class="flex flex-col items-center gap-2 mx-w-full overflow-y-scroll mb-6 box-border"
+							class="flex flex-col items-center gap-2 mx-w-full mb-6 box-border"
 						>
-							{#if wifiConnected}
+							<ScrollArea>
+								{#if wifiConnected}
+									<div class="w-full px-6 flex flex-col gap-2">
+										<p class="ml-2">Connected WiFis</p>
+										<Accordion.Root
+											type="single"
+											class="w-full overflow-hidden"
+										>
+											<Accordion.Item value={connectedWifiSsid}>
+												<Accordion.Trigger enableIcon={false}
+													><div class="flex gap-2">
+														{#if connectedWifiRssi > -50}
+															<Wifi />
+														{:else if connectedWifiRssi > -70}
+															<WifiHigh />
+														{:else if connectedWifiRssi > -80}
+															<WifiLow />
+														{:else}
+															<WifiZero />
+														{/if}
+														{connectedWifiSsid}
+													</div>
+												</Accordion.Trigger>
+												<Accordion.Content
+													class="flex flex-col gap-4 pt-1 px-1"
+												>
+													<Button
+														onclick={onDisconnectWifiClick}
+														variant="destructive"
+													>
+														Disconnect
+													</Button>
+												</Accordion.Content>
+											</Accordion.Item>
+										</Accordion.Root>
+									</div>
+								{/if}
 								<div class="w-full px-6 flex flex-col gap-2">
-									<p class="ml-2">Connected WiFis</p>
-									<Accordion.Root type="single" class="w-full overflow-hidden">
-										<Accordion.Item value={connectedWifiSsid}>
-											<Accordion.Trigger enableIcon={false}
-												><div class="flex gap-2">
-													{#if connectedWifiRssi > -50}
-														<Wifi />
-													{:else if connectedWifiRssi > -70}
-														<WifiHigh />
-													{:else if connectedWifiRssi > -80}
-														<WifiLow />
-													{:else}
-														<WifiZero />
-													{/if}
-													{connectedWifiSsid}
-												</div>
-											</Accordion.Trigger>
-											<Accordion.Content class="flex flex-col gap-4 pt-1 px-1">
-												<Button onclick={onDisconnectWifiClick}>
-													Disconnect
-												</Button>
-											</Accordion.Content>
-										</Accordion.Item>
+									<p class="ml-2">Scanned WiFis</p>
+									<Accordion.Root
+										type="single"
+										class="w-full overflow-hidden"
+										onValueChange={onSelectedWifiChange}
+									>
+										{#each wifis.filter((wifi) => !wifiConnected || wifi.bssid != connectedWifiBssid) as wifi (wifi)}
+											<Accordion.Item value={wifi.bssid}>
+												<Accordion.Trigger
+													enableIcon={false}
+													disabled={wifiConnectionPending}
+													><div class="flex gap-2">
+														{#if wifi.rssi > -50}
+															<Wifi />
+														{:else if wifi.rssi > -70}
+															<WifiHigh />
+														{:else if wifi.rssi > -80}
+															<WifiLow />
+														{:else}
+															<WifiZero />
+														{/if}
+														{wifi.ssid}
+													</div>
+													<div>
+														{#if !wifi.open}
+															<Lock />
+														{/if}
+													</div></Accordion.Trigger
+												>
+												<Accordion.Content
+													class="flex flex-col gap-4 pt-1 px-1"
+												>
+													<div>
+														{#if wifiConnectionError}
+															<p class="text-destructive">Failed to connect!</p>
+														{/if}
+													</div>
+													<div class="flex flex-row gap-4">
+														<Button
+															onclick={onPasswordVisiblityClick}
+															variant="ghost"
+														>
+															{#if passwordHidden}
+																<EyeClosedIcon />
+															{:else}
+																<EyeIcon />
+															{/if}
+														</Button>
+														<Input
+															type={passwordHidden ? "password" : "text"}
+															placeholder="Password"
+															bind:value={wifiPasswordInput}
+														/>
+														<Button
+															onclick={connectToWifi}
+															disabled={wifiConnectionPending}
+														>
+															{#if wifiConnectionPending}
+																<Spinner />
+															{:else}
+																Connect
+															{/if}
+														</Button>
+													</div>
+												</Accordion.Content>
+											</Accordion.Item>
+										{/each}
 									</Accordion.Root>
 								</div>
-							{/if}
-							<div class="w-full px-6 flex flex-col gap-2">
-								<p class="ml-2">Scanned WiFis</p>
-								<Accordion.Root
-									type="single"
-									class="w-full overflow-hidden"
-									onValueChange={onSelectedWifiChange}
-								>
-									{#each wifis.filter((wifi) => !wifiConnected || wifi.bssid != connectedWifiBssid) as wifi (wifi)}
-										<Accordion.Item value={wifi.bssid}>
-											<Accordion.Trigger
-												enableIcon={false}
-												disabled={wifiConnectionPending}
-												><div class="flex gap-2">
-													{#if wifi.rssi > -50}
-														<Wifi />
-													{:else if wifi.rssi > -70}
-														<WifiHigh />
-													{:else if wifi.rssi > -80}
-														<WifiLow />
-													{:else}
-														<WifiZero />
-													{/if}
-													{wifi.ssid}
-												</div>
-												<div>
-													{#if !wifi.open}
-														<Lock />
-													{/if}
-												</div></Accordion.Trigger
-											>
-											<Accordion.Content class="flex flex-col gap-4 pt-1 px-1">
-												<div>
-													{#if wifiConnectionError}
-														<p class="text-destructive">Failed to connect!</p>
-													{/if}
-												</div>
-												<div class="flex flex-row gap-4">
-													<Button onclick={onPasswordVisiblityClick} variant="ghost">
-														{#if passwordHidden}
-															<EyeClosedIcon />
-														{:else}
-															<EyeIcon />
-														{/if}
-													</Button>
-													<Input
-														type={passwordHidden ? "password" : "text"}
-														placeholder="Password"
-														bind:value={wifiPasswordInput}
-													/>
-													<Button
-														onclick={connectToWifi}
-														disabled={wifiConnectionPending}
-													>
-														{#if wifiConnectionPending}
-															<Spinner />
-														{:else}
-															Connect
-														{/if}
-													</Button>
-												</div>
-											</Accordion.Content>
-										</Accordion.Item>
-									{/each}
-								</Accordion.Root>
-							</div>
+							</ScrollArea>
 						</div>
 					{/if}
 				</Dialog.Content>
@@ -287,8 +314,12 @@
 						<RotateCw />
 						Restart
 					</Button>
-					<Button variant="secondary" onclick={restartEsp}><RotateCw />Restart ESP32</Button>
-					<Button variant="secondary" onclick={restartStm}><RotateCw />Restart STM32</Button>
+					<Button variant="secondary" onclick={restartEsp}
+						><RotateCw />Restart ESP32</Button
+					>
+					<Button variant="secondary" onclick={restartStm}
+						><RotateCw />Restart STM32</Button
+					>
 				</Dialog.Content>
 				<Dialog.Trigger>
 					<Button variant="outline" size="icon-lg">
@@ -309,7 +340,9 @@
 				<MoonIcon
 					class="absolute scale-0 rotate-90 !transition-all dark:scale-100 dark:rotate-0"
 				/>
-				<span class="sr-only">Toggle theme</span>
+			</Button>
+			<Button href="#/settings" variant="outline" size="icon-lg">
+				<SettingsIcon />
 			</Button>
 		</div>
 	</div>

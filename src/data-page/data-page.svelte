@@ -440,7 +440,7 @@
 
 <Tabs.Root
 	bind:value={dataTab}
-	class="h-full w-full flex-1 flex flex-col overflow-hidden gap-0"
+	class="h-full overflow-hidden gap-0"
 	onValueChange={onDataTabChange}
 >
 	<Tabs.List class="w-full rounded-none min-h-20">
