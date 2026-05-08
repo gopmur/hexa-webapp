@@ -7,7 +7,8 @@
 	import ReportTab from "$src/home-page/report-tab.svelte";
 	import ControlTab from "./home-page/control-tab.svelte";
 	import DataTab from "./home-page/data-tab.svelte";
-	import { API_ADDRESS, WS_API_ADDRESS } from "./config";
+	import { WS_API_ADDRESS } from "./config";
+	import { JoystickIcon } from "lucide-svelte";
 
 	let readDataStream = false;
 	let settingsPage = true;
@@ -36,7 +37,7 @@
 	</Tabs.Content>
 	<Tabs.List class="w-full rounded-none min-h-20">
 		<Tabs.Trigger class="flex flex-col" value="settings">
-			<SettingsIcon class="size-6" /> Settings
+			<JoystickIcon class="size-6" /> Control
 		</Tabs.Trigger>
 		<Tabs.Trigger class="flex flex-col" value="data">
 			<ChartIcon class="size-6" /> Data
