@@ -10,7 +10,6 @@
 	import EyeIcon from "@lucide/svelte/icons/eye";
 	import EyeClosedIcon from "@lucide/svelte/icons/eye-closed";
 	import BatteryFull from "@lucide/svelte/icons/battery-full";
-	import UserRoundIcon from "@lucide/svelte/icons/user-round";
 	import { Button, Root } from "$lib/components/ui/button";
 	import { API_ADDRESS } from "$src/config";
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
@@ -18,7 +17,7 @@
 	import { onMount } from "svelte";
 	import * as Accordion from "$lib/components/ui/accordion/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
-	import { LockIcon, MoonIcon, SettingsIcon, SunIcon } from "lucide-svelte";
+	import { HomeIcon, HouseIcon, LockIcon, MoonIcon, SettingsIcon, SunIcon } from "lucide-svelte";
 	import { toggleMode } from "mode-watcher";
 	import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
 	import type { HTMLTdAttributes } from "svelte/elements";
@@ -147,10 +146,10 @@
 
 <header class={cn("bg-accent w-full p-4", classname)}>
 	<div class="flex justify-between items-center">
-		<div
-			class="w-fit h-fit rounded-full border-2 flex justify-center items-center aspect-square"
-		>
-			<UserRoundIcon class="size-6" />
+		<div class="flex">
+			<Button variant="outline" size="icon-lg" href="/">
+				<HouseIcon />
+			</Button>
 		</div>
 		<div class="flex gap-4">
 			<Dialog.Root>
@@ -321,14 +320,6 @@
 			</Button>
 			<Button variant="outline" size="icon-lg">
 				<ThermometerIcon />
-			</Button>
-			<Button onclick={toggleMode} variant="outline" size="icon-lg">
-				<SunIcon
-					class="scale-100 rotate-0 !transition-all dark:scale-0 dark:-rotate-90"
-				/>
-				<MoonIcon
-					class="absolute scale-0 rotate-90 !transition-all dark:scale-100 dark:rotate-0"
-				/>
 			</Button>
 			<Button href="#/settings" variant="outline" size="icon-lg">
 				<SettingsIcon />
