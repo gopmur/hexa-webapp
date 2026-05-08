@@ -3,7 +3,7 @@
 	import HomePage from "./home-page.svelte";
 	import Router from "svelte-spa-router";
 	import SettingsPage from "./settings-page.svelte";
-	import Header from "./header/header.svelte";
+	import TopBar from "./top-bar.svelte";
 
 	const routes = {
 		"/": HomePage,
@@ -14,7 +14,7 @@
 <main class="h-dvh w-full overflow-hidden">
 	<ModeWatcher />
 	<div class="h-full w-screen flex flex-col overflow-hidden">
-		<Header />
+		<TopBar />
 		<div class="flex flex-col flex-1 overflow-hidden">
 			<Router {routes} /> 
 		</div>

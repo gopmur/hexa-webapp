@@ -1,6 +1,6 @@
 <script lang="ts">
-	import GaitAnalysisPageChart from "./gait-analysis-page-chart/gait-analysis-page-chart.svelte";
-	import type { ChartDataType } from "./gait-analysis-page-charts";
+	import GaitAnalysisPageChart from "../report-tab/report-tab-charts/report-tab-chart.svelte";
+	import type { ChartDataType } from "./report-tab-charts";
 
 	export let data: ChartDataType[] = [];
 	let className = "";

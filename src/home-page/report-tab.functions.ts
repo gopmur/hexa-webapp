@@ -7,13 +7,13 @@ import {
 	ptp,
 	radians,
 } from "$lib/scijs/scijs";
-import type { TableRowType } from "./gait-analysis-page-table/gait-analysis-page-table.type";
+import type { TableRowType } from "./report-tab/report-tab-table";
 import type {
 	GaitData,
 	LegSummaryType,
 	SummaryType,
-} from "./gait-analysis-page";
-import type { ChartDataType } from "./gait-analysis-page-charts/gait-analysis-page-charts";
+} from "./report-tab";
+import type { ChartDataType } from "./report-tab/report-tab-charts";
 
 export const computeCallbackTime = (data: GaitData, samplingRate = 100) => {
 	const callbackTimeMeanDiff = mean(diff(data["callback_time"]));

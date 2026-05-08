@@ -1,13 +1,12 @@
 <script lang="ts">
-	import Header from "$src/header/header.svelte";
 	import * as Tabs from "$lib/components/ui/tabs";
 	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import ChartIcon from "@lucide/svelte/icons/chart-spline";
 	import UserRoundCogIcon from "@lucide/svelte/icons/user-round-cog";
 	import FileTextIcon from "@lucide/svelte/icons/file-text";
-	import GaitAnalysisPage from "$src/gait-analysis-page/gait-analysis-page.svelte";
-	import SettingsPage from "./control-tab/settings-page.svelte";
-	import DataPage from "./data-page/data-page.svelte";
+	import ReportTab from "$src/home-page/report-tab.svelte";
+	import ControlTab from "./home-page/control-tab.svelte";
+	import DataTab from "./home-page/data-tab.svelte";
 	import { API_ADDRESS, WS_API_ADDRESS } from "./config";
 
 	let readDataStream = false;
@@ -26,14 +25,14 @@
 	onValueChange={onTabChange}
 >
 	<Tabs.Content value="settings" class="overflow-hidden">
-		<SettingsPage {ws} />
+		<ControlTab {ws} />
 	</Tabs.Content>
 	<Tabs.Content value="data" class="overflow-hidden">
-		<DataPage {readDataStream} {ws} />
+		<DataTab {readDataStream} {ws} />
 	</Tabs.Content>
 	<Tabs.Content value="patients" class="overflow-hidden"></Tabs.Content>
 	<Tabs.Content value="report" class="overflow-hidden">
-		<GaitAnalysisPage />
+		<ReportTab />
 	</Tabs.Content>
 	<Tabs.List class="w-full rounded-none min-h-20">
 		<Tabs.Trigger class="flex flex-col" value="settings">

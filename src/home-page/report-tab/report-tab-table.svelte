@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cn } from "$lib/utils";
-	import type { TableRowType } from "./gait-analysis-page-table.type";
+	import type { TableRowType } from "./report-tab-table";
 
 	export let data: TableRowType[] = [];
 	let className = "";

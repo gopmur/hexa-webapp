@@ -1,16 +1,16 @@
 <script lang="ts">
 	// import { data } from "./data.json";
 	import { Button } from "$lib/components/ui/button/index";
-	import type { GaitData, SummaryType } from "./gait-analysis-page";
+	import type { GaitData, SummaryType } from "./report-tab";
 	import {
 		analyzeSessions,
 		makeChartData,
 		makeTableData,
-	} from "./gait-analysis-page.functions";
-	import type { TableRowType } from "./gait-analysis-page-table/gait-analysis-page-table.type";
-	import GaitAnalysisTable from "./gait-analysis-page-table/gait-analysis-page-table.svelte";
-	import GaitAnalysisPageCharts from "./gait-analysis-page-charts/gait-analysis-page-charts.svelte";
-	import type { ChartDataType } from "./gait-analysis-page-charts/gait-analysis-page-charts";
+	} from "./report-tab.functions";
+	import type { TableRowType } from "./report-tab/report-tab-table";
+	import GaitAnalysisTable from "./report-tab/report-tab-table.svelte";
+	import ReportTabCharts from "./report-tab/report-tab-table.svelte";
+	import type { ChartDataType } from "./report-tab/report-tab-charts";
 	let data: GaitData[] = [];
 	let loading = false;
 	let dataAvailable = false;
@@ -40,7 +40,7 @@
 			<div class="overflow-x-auto">
 				<GaitAnalysisTable data={tableData} />
 			</div>
-			<GaitAnalysisPageCharts data={chartData} />
+			<ReportTabCharts data={chartData} />
 		</div>
 	{/if}
 </div>

@@ -6,7 +6,7 @@
 	import type {
 		GaitAnalysisPageChartRecordType,
 		GaitAnalysisPageChartSeriesType,
-	} from "./gait-analysis-page-chart";
+	} from "./report-tab-chart";
 	import { cn } from "$lib/utils";
 
 	const chartConfig = {
