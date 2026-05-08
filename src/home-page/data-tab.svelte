@@ -509,7 +509,7 @@
 				</Table.Root>
 			{/if}
 		</Tabs.Content>
-		<Tabs.Content value="esp-task-data" class="overflow-y-scroll flex-1">
+		<Tabs.Content value="esp-task-data" class="overflow-y-scroll">
 			{#if espStackSizesLoading}
 				<div class="h-full w-full flex items-center justify-center">
 					<div class="flex flex-col gap-4 items-center">

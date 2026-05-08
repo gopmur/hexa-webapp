@@ -10,7 +10,10 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			$lib: path.resolve("./src/lib"),
-			$src: path.resolve("./src")
+			$src: path.resolve("./src"),
 		},
+	},
+	optimizeDeps: {
+		include: ["svelte-sonner", "runed"],
 	},
 });
