@@ -20,15 +20,19 @@
 	const ws = new WebSocket(`${WS_API_ADDRESS}/api/data`);
 </script>
 
-<Tabs.Root value="settings" class="flex flex-col h-full gap-0 overflow-hidden" onValueChange={onTabChange}>
-	<Tabs.Content value="settings" >
-		<!-- <SettingsPage {ws} /> -->
+<Tabs.Root
+	value="settings"
+	class="flex flex-col h-full gap-0 overflow-hidden"
+	onValueChange={onTabChange}
+>
+	<Tabs.Content value="settings" class="overflow-hidden">
+		<SettingsPage {ws} />
 	</Tabs.Content>
 	<Tabs.Content value="data" class="overflow-hidden">
 		<DataPage {readDataStream} {ws} />
 	</Tabs.Content>
-	<Tabs.Content value="patients" class="flex-1 "></Tabs.Content>
-	<Tabs.Content value="report" class="flex-1 ">
+	<Tabs.Content value="patients" class="overflow-hidden"></Tabs.Content>
+	<Tabs.Content value="report" class="overflow-hidden">
 		<GaitAnalysisPage />
 	</Tabs.Content>
 	<Tabs.List class="w-full rounded-none min-h-20">
