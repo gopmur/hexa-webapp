@@ -116,8 +116,8 @@
 	};
 
 	const appendImuData = (imuData: ImuData, t: number) => {
-		if (["x", "y", "z"].some(key => !(key in imuData)) || t === undefined) {
-			return
+		if (["x", "y", "z"].some((key) => !(key in imuData)) || t === undefined) {
+			return;
 		}
 		const newPoint = {
 			t: t / 1000,
@@ -148,6 +148,13 @@
 	};
 
 	const appendMotorData = (motorData: MotorData, t: number) => {
+		if (
+			["leftPosition", "rightPosition"].some((key) => !(key in motorData)) ||
+			t === undefined
+		) {
+			return;
+		}
+
 		const newPoint = {
 			t: t / 1000,
 			leftPosition: motorData.leftPosition,
@@ -156,8 +163,22 @@
 
 		motorChartData = [...motorChartData, newPoint];
 
-		if (motorChartData.length > MAX_POINTS) {
-			motorChartData = motorChartData.slice(1);
+		if (
+			Number(motorChartData.at(-1)?.t) - Number(motorChartData.at(0)?.t) >
+			MAX_T_SPAN
+		) {
+			const diff =
+				Number(motorChartData.at(-1)?.t) -
+				Number(motorChartData.at(0)?.t) -
+				MAX_T_SPAN;
+			let i = 0;
+			let start = Number(motorChartData.at(0)?.t);
+			for (i = 1; i < motorChartData.length; i++) {
+				if (motorChartData[i].t - start >= diff) {
+					break;
+				}
+			}
+			motorChartData = motorChartData.slice(i);
 		}
 	};
 
@@ -306,7 +327,6 @@
 
 	ws.onmessage = (event) => {
 		const data: WsData = JSON.parse(event.data);
-		console.log(data)
 		const stmTaskData = data.stmCpuUsage;
 		const espTaskData = data.espCpuUsage;
 		const imuData = data.imu;
@@ -387,7 +407,12 @@
 		z: "var(--destructive)",
 	};
 
-	const imuXSeries = [
+	const motorChartColors = {
+		leftPosition: "var(--warning)",
+		rightPosition: "var(--chart-2)",
+	};
+
+	let imuSeries = [
 		{
 			key: "x",
 			label: "x",
@@ -404,20 +429,19 @@
 			color: imuChartColors.z,
 		},
 	];
-	const motorLeftSeries = [
+	const motorSeries = [
 		{
 			key: "leftPosition",
 			label: "Left position",
-			color: "red",
+			color: motorChartColors.leftPosition,
 		},
-	];
-	const motorRightSeries = [
 		{
 			key: "rightPosition",
 			label: "Right position",
-			color: "red",
+			color: motorChartColors.rightPosition,
 		},
 	];
+
 	const heapSeries = [
 		{
 			key: "free",
@@ -623,83 +647,74 @@
 					<span>Roll : {imuChartData.at(-1)?.z.toFixed(1)}</span>
 				</div>
 			</div>
-			<div>
+			<Chart.Container config={chartConfig}>
+				<LineChart
+					data={imuChartData}
+					x="t"
+					axis="x"
+					series={imuSeries}
+					props={{
+						highlight: { points: false },
+						xAxis: {
+							format: (d) => d / 1_000_000,
+						},
+					}}
+					yDomain={[-180, 180]}
+					xDomain={[
+						imuChartData.at(0)?.t,
+						Number(imuChartData.at(0)?.t) + MAX_T_SPAN,
+					]}
+				></LineChart>
+			</Chart.Container>
+		</Tabs.Content>
+		<Tabs.Content
+			value="motor"
+			class="overflow-y-auto flex-1 flex flex-col gap-4 p-4"
+		>
+			<div class="flex flex-col gap-1">
+				<div class="flex flex-col gap-1">
+					<div class="flex items-center gap-2">
+						<div
+							class="aspect-square w-3 rounded-sm"
+							style="background-color: {imuChartColors.x};"
+						></div>
+						<span
+							>Left position : {motorChartData
+								.at(-1)
+								?.leftPosition.toFixed(1)}</span
+						>
+					</div>
+					<div class="flex items-center gap-2">
+						<div
+							class="aspect-square w-3 rounded-sm"
+							style="background-color: {imuChartColors.y};"
+						></div>
+						<span
+							>Right position : {motorChartData
+								.at(-1)
+								?.rightPosition.toFixed(1)}</span
+						>
+					</div>
+				</div>
 				<Chart.Container config={chartConfig}>
 					<LineChart
-						data={imuChartData}
+						data={motorChartData}
 						x="t"
 						axis="x"
-						series={imuXSeries}
+						series={motorSeries}
 						props={{
 							highlight: { points: false },
 							xAxis: {
 								format: (d) => d / 1_000_000,
 							},
 						}}
-						yDomain={[-180, 180]}
+						yDomain={[32000, 39000]}
 						xDomain={[
-							imuChartData.at(0)?.t,
-							Number(imuChartData.at(0)?.t) + MAX_T_SPAN,
+							motorChartData.at(0)?.t,
+							Number(motorChartData.at(0)?.t) + MAX_T_SPAN,
 						]}
 					></LineChart>
 				</Chart.Container>
-			</div>
-		</Tabs.Content>
-		<Tabs.Content
-			value="motor"
-			class="overflow-y-auto flex-1 flex flex-col gap-10"
-		>
-			<div class="flex">
-				<div class="w-10 flex justify-center items-center">
-					<p class="rotate-90">Right Position</p>
-				</div>
-				<div class="flex-1">
-					<Chart.Container config={chartConfig}>
-						<LineChart
-							data={motorChartData}
-							x="t"
-							axis="x"
-							series={motorRightSeries}
-							props={{
-								highlight: { points: false },
-							}}
-							yDomain={[32000, 39000]}
-							xDomain={[
-								motorChartData.at(0)?.t,
-								motorChartData.length < 200
-									? Number(motorChartData.at(0)?.t) +
-										getMeanDiff(motorChartData.map((p) => p.t)) * 200
-									: motorChartData.at(-1)?.t,
-							]}
-						></LineChart>
-					</Chart.Container>
-				</div>
-			</div>
-			<div class="flex">
-				<div class="w-10 flex justify-center items-center">
-					<p class="rotate-90">Left Position</p>
-				</div>
-				<div class="flex-1">
-					<Chart.Container config={chartConfig}>
-						<LineChart
-							data={motorChartData}
-							x="t"
-							axis="x"
-							series={motorLeftSeries}
-							props={{
-								highlight: { points: false },
-							}}
-							yDomain={[32000, 39000]}
-							xDomain={[
-								motorChartData.at(0)?.t,
-								motorChartData.length < 200
-									? Number(motorChartData.at(0)?.t) +
-										getMeanDiff(motorChartData.map((p) => p.t)) * 200
-									: motorChartData.at(-1)?.t,
-							]}
-						></LineChart>
-					</Chart.Container>
-				</div>
 			</div>
 		</Tabs.Content>
 	</div>
