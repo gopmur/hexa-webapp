@@ -31,3 +31,15 @@ export const numberIsValid = (n: number | null | undefined): n is number => {
 };
 
 
+export const formatSize = (n: number) => {
+	if (n >= 2**30) {
+		return `${(n / 2**30).toFixed(1)}GB`
+	}
+	if (n >= 2**20) {
+		return `${(n / 2**20).toFixed(1)}MB`
+	}
+	if (n >= 2**10) {
+		return `${(n / 2**10).toFixed(1)}kB`
+	}
+	return `${n}B`
+}

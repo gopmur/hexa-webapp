@@ -5,9 +5,10 @@
 	import { LineChart } from "layerchart";
 	import * as Chart from "$lib/components/ui/chart/index.js";
 	import { onMount } from "svelte";
-	import { numberIsValid, sleep } from "$lib/utils";
+	import { formatSize, numberIsValid, sleep } from "$lib/utils";
 	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
 	import ChartLegend from "./data-tab/chart-legend.svelte";
+	import Separator from "$lib/components/ui/separator/separator.svelte";
 
 	export let readDataStream: boolean = false;
 	export let ws: WebSocket;
@@ -562,6 +563,7 @@
 						</Table.Body>
 					</Table.Root>
 				</div>
+				<Separator />
 				<div class="p-4">
 					<ChartLegend
 						series={heapSeries}
@@ -569,7 +571,7 @@
 							? Object.fromEntries(
 									Object.entries(heapChartData.at(-1) ?? {}).map(([k, v]) => [
 										k,
-										String(v),
+										formatSize(v),
 									]),
 								)
 							: undefined}
