@@ -7,6 +7,7 @@
 	import { onMount } from "svelte";
 	import { numberIsValid, sleep } from "$lib/utils";
 	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
+	import ChartLegend from "./data-tab/chart-legend.svelte";
 
 	export let readDataStream: boolean = false;
 	export let ws: WebSocket;
@@ -99,87 +100,31 @@
 	let espStackSizesLoading = true;
 	let stmStackSizesLoading = true;
 
-	const MAX_POINTS = 200;
-	const MAX_T_SPAN = 5_000;
+	const MAX_T_SPAN = 5_000_000;
 
-	const appendHeapData = (heapData: ReceivedHeapDataType, t: number) => {
+	const appendDataPointToChartData = (
+		dataPoint: object,
+		t: number,
+		chartData: Array<object & { t: number }>,
+	) => {
 		const newPoint = {
-			t: t / 1000,
-			...heapData,
+			t,
+			...dataPoint,
 		};
-
-		heapChartData = [...heapChartData, newPoint];
-
-		if (heapChartData.length > MAX_POINTS) {
-			heapChartData = heapChartData.slice(1);
-		}
-	};
-
-	const appendImuData = (imuData: ImuData, t: number) => {
-		if (["x", "y", "z"].some((key) => !(key in imuData)) || t === undefined) {
-			return;
-		}
-		const newPoint = {
-			t: t / 1000,
-			x: imuData.x,
-			y: imuData.y,
-			z: imuData.z,
-		};
-
-		imuChartData = [...imuChartData, newPoint];
-
-		if (
-			Number(imuChartData.at(-1)?.t) - Number(imuChartData.at(0)?.t) >
-			MAX_T_SPAN
-		) {
+		chartData.push(newPoint);
+		if (Number(chartData.at(-1)?.t) - Number(chartData.at(0)?.t) > MAX_T_SPAN) {
 			const diff =
-				Number(imuChartData.at(-1)?.t) -
-				Number(imuChartData.at(0)?.t) -
-				MAX_T_SPAN;
+				Number(chartData.at(-1)?.t) - Number(chartData.at(0)?.t) - MAX_T_SPAN;
 			let i = 0;
-			let start = Number(imuChartData.at(0)?.t);
-			for (i = 1; i < imuChartData.length; i++) {
-				if (imuChartData[i].t - start >= diff) {
+			let start = Number(chartData.at(0)?.t);
+			for (i = 1; i < chartData.length; i++) {
+				if (chartData[i].t - start >= diff) {
 					break;
 				}
 			}
-			imuChartData = imuChartData.slice(i);
+			return chartData.slice(i);
 		}
-	};
-
-	const appendMotorData = (motorData: MotorData, t: number) => {
-		if (
-			["leftPosition", "rightPosition"].some((key) => !(key in motorData)) ||
-			t === undefined
-		) {
-			return;
-		}
-
-		const newPoint = {
-			t: t / 1000,
-			leftPosition: motorData.leftPosition,
-			rightPosition: motorData.rightPosition,
-		};
-
-		motorChartData = [...motorChartData, newPoint];
-
-		if (
-			Number(motorChartData.at(-1)?.t) - Number(motorChartData.at(0)?.t) >
-			MAX_T_SPAN
-		) {
-			const diff =
-				Number(motorChartData.at(-1)?.t) -
-				Number(motorChartData.at(0)?.t) -
-				MAX_T_SPAN;
-			let i = 0;
-			let start = Number(motorChartData.at(0)?.t);
-			for (i = 1; i < motorChartData.length; i++) {
-				if (motorChartData[i].t - start >= diff) {
-					break;
-				}
-			}
-			motorChartData = motorChartData.slice(i);
-		}
+		return chartData;
 	};
 
 	const getStmStackSizes = async () => {
@@ -208,16 +153,6 @@
 			}
 		}
 		espStackSizesLoading = false;
-	};
-
-	const getMeanDiff = (x: number[]) => {
-		let diffSum = 0;
-		let count = 0;
-		for (let i = 0; i < x.length - 1; i++) {
-			diffSum += Math.abs(x[i + 1] - x[i]);
-			count++;
-		}
-		return diffSum / count;
 	};
 
 	getStmStackSizes();
@@ -333,9 +268,24 @@
 		const motorData = data.motor;
 		const heapData = data.espHeap;
 		const t = data.microseconds;
-		if (heapData) appendHeapData(heapData, t);
-		if (imuData) appendImuData(imuData, t);
-		if (motorData) appendMotorData(motorData, t);
+		if (heapData)
+			heapChartData = appendDataPointToChartData(
+				heapData,
+				t,
+				heapChartData,
+			) as HeapChartDataType[];
+		if (imuData)
+			imuChartData = appendDataPointToChartData(
+				imuData,
+				t,
+				imuChartData,
+			) as ImuChartData[];
+		if (motorData)
+			motorChartData = appendDataPointToChartData(
+				motorData,
+				t,
+				motorChartData,
+			) as MotorChartData[];
 		if (stmTaskData) {
 			stmTaskTableData = updateTaskTable(
 				stmTaskTableData,
@@ -407,6 +357,12 @@
 		z: "var(--destructive)",
 	};
 
+	const heapChartColors = {
+		free: "var(--warning)",
+		minFree: "var(--chart-2)",
+		largestBlock: "var(--destructive)",
+	};
+
 	const motorChartColors = {
 		leftPosition: "var(--warning)",
 		rightPosition: "var(--chart-2)",
@@ -446,17 +402,17 @@
 		{
 			key: "free",
 			label: "Free",
-			color: "red",
+			color: heapChartColors.free,
 		},
 		{
 			key: "minFree",
 			label: "Minimum free",
-			color: "orange",
+			color: heapChartColors.minFree,
 		},
 		{
 			key: "largestBlock",
 			label: "Largest block",
-			color: "blue",
+			color: heapChartColors.largestBlock,
 		},
 	];
 
@@ -606,47 +562,54 @@
 						</Table.Body>
 					</Table.Root>
 				</div>
-				<Chart.Container config={chartConfig}>
-					<LineChart
-						data={heapChartData}
-						x="t"
-						axis="x"
+				<div class="p-4">
+					<ChartLegend
 						series={heapSeries}
-						props={{
-							highlight: { points: false },
-						}}
-						xDomain={[heapChartData.at(0)?.t, heapChartData.at(-1)?.t]}
-					></LineChart>
-				</Chart.Container>
+						values={heapChartData?.at(-1)
+							? Object.fromEntries(
+									Object.entries(heapChartData.at(-1) ?? {}).map(([k, v]) => [
+										k,
+										String(v),
+									]),
+								)
+							: undefined}
+					/>
+					<Chart.Container config={chartConfig}>
+						<LineChart
+							data={heapChartData}
+							x="t"
+							axis="x"
+							series={heapSeries}
+							props={{
+								highlight: { points: false },
+								xAxis: {
+									format: (d) => String(d / 1_000_000),
+								},
+							}}
+							xDomain={[
+								heapChartData.at(0)?.t,
+								Number(heapChartData.at(0)?.t) + MAX_T_SPAN,
+							]}
+						></LineChart>
+					</Chart.Container>
+				</div>
 			{/if}
 		</Tabs.Content>
 		<Tabs.Content
 			value="imu"
 			class="overflow-y-auto flex-1 flex flex-col gap-4 p-4"
 		>
-			<div class="flex flex-col gap-1">
-				<div class="flex items-center gap-2">
-					<div
-						class="aspect-square w-3 rounded-sm"
-						style="background-color: {imuChartColors.x};"
-					></div>
-					<span>Pitch : {imuChartData.at(-1)?.x.toFixed(1)}</span>
-				</div>
-				<div class="flex items-center gap-2">
-					<div
-						class="aspect-square w-3 rounded-sm"
-						style="background-color: {imuChartColors.y};"
-					></div>
-					<span>Yaw : {imuChartData.at(-1)?.y.toFixed(1)}</span>
-				</div>
-				<div class="flex items-center gap-2">
-					<div
-						class="aspect-square w-3 rounded-sm"
-						style="background-color: {imuChartColors.z};"
-					></div>
-					<span>Roll : {imuChartData.at(-1)?.z.toFixed(1)}</span>
-				</div>
-			</div>
+			<ChartLegend
+				series={imuSeries}
+				values={imuChartData?.at(-1)
+					? Object.fromEntries(
+							Object.entries(imuChartData.at(-1) ?? {}).map(([k, v]) => [
+								k,
+								v.toFixed(1),
+							]),
+						)
+					: undefined}
+			/>
 			<Chart.Container config={chartConfig}>
 				<LineChart
 					data={imuChartData}
@@ -656,7 +619,7 @@
 					props={{
 						highlight: { points: false },
 						xAxis: {
-							format: (d) => d / 1_000_000,
+							format: (d) => String(d / 1_000_000),
 						},
 					}}
 					yDomain={[-180, 180]}
@@ -672,30 +635,17 @@
 			class="overflow-y-auto flex-1 flex flex-col gap-4 p-4"
 		>
 			<div class="flex flex-col gap-1">
-				<div class="flex flex-col gap-1">
-					<div class="flex items-center gap-2">
-						<div
-							class="aspect-square w-3 rounded-sm"
-							style="background-color: {imuChartColors.x};"
-						></div>
-						<span
-							>Left position : {motorChartData
-								.at(-1)
-								?.leftPosition.toFixed(1)}</span
-						>
-					</div>
-					<div class="flex items-center gap-2">
-						<div
-							class="aspect-square w-3 rounded-sm"
-							style="background-color: {imuChartColors.y};"
-						></div>
-						<span
-							>Right position : {motorChartData
-								.at(-1)
-								?.rightPosition.toFixed(1)}</span
-						>
-					</div>
-				</div>
+				<ChartLegend
+					series={motorSeries}
+					values={motorChartData?.at(-1)
+						? Object.fromEntries(
+								Object.entries(motorChartData.at(-1) ?? {}).map(([k, v]) => [
+									k,
+									String(v),
+								]),
+							)
+						: undefined}
+				/>
 				<Chart.Container config={chartConfig}>
 					<LineChart
 						data={motorChartData}
@@ -705,7 +655,7 @@
 						props={{
 							highlight: { points: false },
 							xAxis: {
-								format: (d) => d / 1_000_000,
+								format: (d) => String(d / 1_000_000),
 							},
 						}}
 						yDomain={[32000, 39000]}
