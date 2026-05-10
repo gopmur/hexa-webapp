@@ -100,6 +100,7 @@
 	let stmStackSizesLoading = true;
 
 	const MAX_POINTS = 200;
+	const MAX_T_SPAN = 5_000;
 
 	const appendHeapData = (heapData: ReceivedHeapDataType, t: number) => {
 		const newPoint = {
@@ -124,8 +125,22 @@
 
 		imuChartData = [...imuChartData, newPoint];
 
-		if (imuChartData.length > MAX_POINTS) {
-			imuChartData = imuChartData.slice(1);
+		if (
+			Number(imuChartData.at(-1)?.t) - Number(imuChartData.at(0)?.t) >
+			MAX_T_SPAN
+		) {
+			const diff =
+				Number(imuChartData.at(-1)?.t) -
+				Number(imuChartData.at(0)?.t) -
+				MAX_T_SPAN;
+			let i = 0;
+			let start = Number(imuChartData.at(0)?.t);
+			for (i = 1; i < imuChartData.length; i++) {
+				if (imuChartData[i].t - start >= diff) {
+					break;
+				}
+			}
+			imuChartData = imuChartData.slice(i);
 		}
 	};
 
@@ -454,8 +469,8 @@
 		<Tabs.Trigger class="flex flex-col" value="motor">Motor</Tabs.Trigger>
 	</Tabs.List>
 
-	<div class="overflow-y-scroll h-full">
-		<Tabs.Content value="stm-task-data" >
+	<div class="overflow-y-auto h-full">
+		<Tabs.Content value="stm-task-data">
 			{#if stmStackSizesLoading}
 				<div class="h-full w-full flex items-center justify-center">
 					<div class="flex flex-col gap-4 items-center">
@@ -463,7 +478,7 @@
 					</div>
 				</div>
 			{:else}
-				<Table.Root>
+				<Table.Root class="[&_tr]:hover:bg-background">
 					<Table.Header>
 						<Table.Row>
 							<Table.Head>Service</Table.Head>
@@ -509,7 +524,7 @@
 				</Table.Root>
 			{/if}
 		</Tabs.Content>
-		<Tabs.Content value="esp-task-data" class="overflow-y-scroll">
+		<Tabs.Content value="esp-task-data" class="overflow-hidden">
 			{#if espStackSizesLoading}
 				<div class="h-full w-full flex items-center justify-center">
 					<div class="flex flex-col gap-4 items-center">
@@ -517,8 +532,8 @@
 					</div>
 				</div>
 			{:else}
-				<div class="max-h-2/3 overflow-scroll">
-					<Table.Root>
+				<div class="max-h-2/3 overflow-auto">
+					<Table.Root class="[&_tr]:hover:bg-background">
 						<Table.Header>
 							<Table.Row>
 								<Table.Head>Service</Table.Head>
@@ -573,20 +588,14 @@
 						props={{
 							highlight: { points: false },
 						}}
-						xDomain={[
-							heapChartData.at(0)?.t,
-							heapChartData.length < 200
-								? Number(heapChartData.at(0)?.t) +
-									getMeanDiff(heapChartData.map((p) => p.t)) * 200
-								: heapChartData.at(-1)?.t,
-						]}
+						xDomain={[heapChartData.at(0)?.t, heapChartData.at(-1)?.t]}
 					></LineChart>
 				</Chart.Container>
 			{/if}
 		</Tabs.Content>
 		<Tabs.Content
 			value="imu"
-			class="overflow-y-scroll flex-1 flex flex-col gap-10"
+			class="overflow-y-auto flex-1 flex flex-col gap-10"
 		>
 			<div class="flex">
 				<div class="w-10 flex justify-center items-center">
@@ -601,14 +610,14 @@
 							series={imuXSeries}
 							props={{
 								highlight: { points: false },
+								xAxis: {
+									format: (d) => d / 1_000_000,
+								},
 							}}
 							yDomain={[-180, 180]}
 							xDomain={[
 								imuChartData.at(0)?.t,
-								imuChartData.length < 200
-									? Number(imuChartData.at(0)?.t) +
-										getMeanDiff(imuChartData.map((p) => p.t)) * 200
-									: imuChartData.at(-1)?.t,
+								Number(imuChartData.at(0)?.t) + MAX_T_SPAN,
 							]}
 						></LineChart>
 					</Chart.Container>
@@ -627,14 +636,14 @@
 							series={imuYSeries}
 							props={{
 								highlight: { points: false },
+								xAxis: {
+									format: (d) => d / 1_000_000,
+								},
 							}}
 							yDomain={[-180, 180]}
 							xDomain={[
 								imuChartData.at(0)?.t,
-								imuChartData.length < 200
-									? Number(imuChartData.at(0)?.t) +
-										getMeanDiff(imuChartData.map((p) => p.t)) * 200
-									: imuChartData.at(-1)?.t,
+								Number(imuChartData.at(0)?.t) + MAX_T_SPAN,
 							]}
 						></LineChart>
 					</Chart.Container>
@@ -653,14 +662,14 @@
 							series={imuZSeries}
 							props={{
 								highlight: { points: false },
+								xAxis: {
+									format: (d) => d / 1_000_000,
+								},
 							}}
 							yDomain={[-180, 180]}
 							xDomain={[
 								imuChartData.at(0)?.t,
-								imuChartData.length < 200
-									? Number(imuChartData.at(0)?.t) +
-										getMeanDiff(imuChartData.map((p) => p.t)) * 200
-									: imuChartData.at(-1)?.t,
+								Number(imuChartData.at(0)?.t) + MAX_T_SPAN,
 							]}
 						></LineChart>
 					</Chart.Container>
@@ -669,7 +678,7 @@
 		</Tabs.Content>
 		<Tabs.Content
 			value="motor"
-			class="overflow-y-scroll flex-1 flex flex-col gap-10"
+			class="overflow-y-auto flex-1 flex flex-col gap-10"
 		>
 			<div class="flex">
 				<div class="w-10 flex justify-center items-center">

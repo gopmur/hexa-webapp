@@ -116,7 +116,7 @@
 				</Tabs.Trigger>
 				<Tabs.Trigger class="flex flex-col" value="smart">Smart</Tabs.Trigger>
 			</Tabs.List>
-			<div class="h-full flex flex-col overflow-scroll">
+			<div class="h-full flex flex-col overflow-auto">
 				<Tabs.Content value="manual">
 					<div class="w-full flex justify-center">
 						<div class="flex justify-between w-40 pt-5">
