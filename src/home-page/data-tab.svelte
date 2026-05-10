@@ -116,6 +116,9 @@
 	};
 
 	const appendImuData = (imuData: ImuData, t: number) => {
+		if (["x", "y", "z"].some(key => !(key in imuData)) || t === undefined) {
+			return
+		}
 		const newPoint = {
 			t: t / 1000,
 			x: imuData.x,
@@ -303,6 +306,7 @@
 
 	ws.onmessage = (event) => {
 		const data: WsData = JSON.parse(event.data);
+		console.log(data)
 		const stmTaskData = data.stmCpuUsage;
 		const espTaskData = data.espCpuUsage;
 		const imuData = data.imu;
@@ -377,30 +381,29 @@
 		fetch(`${API_ADDRESS}/api/streams/stop/motor`);
 	}
 
+	const imuChartColors = {
+		x: "var(--warning)",
+		y: "var(--chart-2)",
+		z: "var(--destructive)",
+	};
+
 	const imuXSeries = [
 		{
 			key: "x",
 			label: "x",
-			// color: "red",
+			color: imuChartColors.x,
 		},
-	];
-
-	const imuYSeries = [
 		{
 			key: "y",
 			label: "y",
-			// color: "red",
+			color: imuChartColors.y,
 		},
-	];
-
-	const imuZSeries = [
 		{
 			key: "z",
 			label: "z",
-			// color: "red",
+			color: imuChartColors.z,
 		},
 	];
-
 	const motorLeftSeries = [
 		{
 			key: "leftPosition",
@@ -595,85 +598,51 @@
 		</Tabs.Content>
 		<Tabs.Content
 			value="imu"
-			class="overflow-y-auto flex-1 flex flex-col gap-10"
+			class="overflow-y-auto flex-1 flex flex-col gap-4 p-4"
 		>
-			<div class="flex">
-				<div class="w-10 flex justify-center items-center">
-					<p class="rotate-90">Pitch</p>
+			<div class="flex flex-col gap-1">
+				<div class="flex items-center gap-2">
+					<div
+						class="aspect-square w-3 rounded-sm"
+						style="background-color: {imuChartColors.x};"
+					></div>
+					<span>Pitch : {imuChartData.at(-1)?.x.toFixed(1)}</span>
 				</div>
-				<div class="flex-1">
-					<Chart.Container config={chartConfig}>
-						<LineChart
-							data={imuChartData}
-							x="t"
-							axis="x"
-							series={imuXSeries}
-							props={{
-								highlight: { points: false },
-								xAxis: {
-									format: (d) => d / 1_000_000,
-								},
-							}}
-							yDomain={[-180, 180]}
-							xDomain={[
-								imuChartData.at(0)?.t,
-								Number(imuChartData.at(0)?.t) + MAX_T_SPAN,
-							]}
-						></LineChart>
-					</Chart.Container>
+				<div class="flex items-center gap-2">
+					<div
+						class="aspect-square w-3 rounded-sm"
+						style="background-color: {imuChartColors.y};"
+					></div>
+					<span>Yaw : {imuChartData.at(-1)?.y.toFixed(1)}</span>
+				</div>
+				<div class="flex items-center gap-2">
+					<div
+						class="aspect-square w-3 rounded-sm"
+						style="background-color: {imuChartColors.z};"
+					></div>
+					<span>Roll : {imuChartData.at(-1)?.z.toFixed(1)}</span>
 				</div>
 			</div>
-			<div class="flex">
-				<div class="w-10 flex justify-center items-center">
-					<p class="rotate-90">Roll</p>
-				</div>
-				<div class="flex-1">
-					<Chart.Container config={chartConfig}>
-						<LineChart
-							data={imuChartData}
-							x="t"
-							axis="x"
-							series={imuYSeries}
-							props={{
-								highlight: { points: false },
-								xAxis: {
-									format: (d) => d / 1_000_000,
-								},
-							}}
-							yDomain={[-180, 180]}
-							xDomain={[
-								imuChartData.at(0)?.t,
-								Number(imuChartData.at(0)?.t) + MAX_T_SPAN,
-							]}
-						></LineChart>
-					</Chart.Container>
-				</div>
-			</div>
-			<div class="flex">
-				<div class="w-10 flex justify-center items-center">
-					<p class="rotate-90">Yaw</p>
-				</div>
-				<div class="flex-1">
-					<Chart.Container config={chartConfig}>
-						<LineChart
-							data={imuChartData}
-							x="t"
-							axis="x"
-							series={imuZSeries}
-							props={{
-								highlight: { points: false },
-								xAxis: {
-									format: (d) => d / 1_000_000,
-								},
-							}}
-							yDomain={[-180, 180]}
-							xDomain={[
-								imuChartData.at(0)?.t,
-								Number(imuChartData.at(0)?.t) + MAX_T_SPAN,
-							]}
-						></LineChart>
-					</Chart.Container>
-				</div>
+			<div>
+				<Chart.Container config={chartConfig}>
+					<LineChart
+						data={imuChartData}
+						x="t"
+						axis="x"
+						series={imuXSeries}
+						props={{
+							highlight: { points: false },
+							xAxis: {
+								format: (d) => d / 1_000_000,
+							},
+						}}
+						yDomain={[-180, 180]}
+						xDomain={[
+							imuChartData.at(0)?.t,
+							Number(imuChartData.at(0)?.t) + MAX_T_SPAN,
+						]}
+					></LineChart>
+				</Chart.Container>
 			</div>
 		</Tabs.Content>
 		<Tabs.Content
