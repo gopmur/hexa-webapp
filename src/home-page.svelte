@@ -9,27 +9,32 @@
 	import DataTab from "./home-page/data-tab.svelte";
 	import { WS_API_ADDRESS } from "./config";
 	import { JoystickIcon } from "lucide-svelte";
+	import { onMount } from "svelte";
+	import { getWebSocket } from "./context/ws";
 
-	let readDataStream = false;
+	let readDataStream = $state(false);
 	let settingsPage = true;
+	let tab = $state("settings");
 
-	const onTabChange = (tab: string) => {
-		readDataStream = tab == "data";
+	const onTabChange = (newTab: string) => {
+		readDataStream = newTab == "data";
 	};
-
-	const ws = new WebSocket(`${WS_API_ADDRESS}/api/data`);
 </script>
 
 <Tabs.Root
-	value="settings"
+	bind:value={tab}
 	class="flex flex-col h-full gap-0 overflow-hidden"
 	onValueChange={onTabChange}
 >
 	<Tabs.Content value="settings" class="overflow-hidden">
-		<ControlTab {ws} />
+		{#if tab == "settings"}
+			<ControlTab />
+		{/if}
 	</Tabs.Content>
 	<Tabs.Content value="data" class="overflow-hidden">
-		<DataTab {readDataStream} {ws} />
+		{#if tab == "data"}
+			<DataTab {readDataStream}/>
+		{/if}
 	</Tabs.Content>
 	<Tabs.Content value="patients" class="overflow-hidden"></Tabs.Content>
 	<Tabs.Content value="report" class="overflow-hidden">

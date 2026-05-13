@@ -7,3 +7,7 @@ type LatestVersionResponseType = {
   api: string;
   core: string;
 }
+
+type UpdateStatusResponseType = {
+  busy: boolean;
+}

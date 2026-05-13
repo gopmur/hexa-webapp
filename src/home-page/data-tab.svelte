@@ -9,9 +9,10 @@
 	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
 	import ChartLegend from "./data-tab/chart-legend.svelte";
 	import Separator from "$lib/components/ui/separator/separator.svelte";
+	import { getWebSocket } from "$src/context/ws";
 
 	export let readDataStream: boolean = false;
-	export let ws: WebSocket;
+	const ws = getWebSocket();
 
 	type ReceivedEspTaskDataType = {
 		cpuUsage: number;
@@ -261,55 +262,6 @@
 		return newTaskTableData;
 	};
 
-	ws.onmessage = (event) => {
-		const data: WsData = JSON.parse(event.data);
-		const stmTaskData = data.stmCpuUsage;
-		const espTaskData = data.espCpuUsage;
-		const imuData = data.imu;
-		const motorData = data.motor;
-		const heapData = data.espHeap;
-		const t = data.microseconds;
-		if (heapData)
-			heapChartData = appendDataPointToChartData(
-				heapData,
-				t,
-				heapChartData,
-			) as HeapChartDataType[];
-		if (imuData)
-			imuChartData = appendDataPointToChartData(
-				imuData,
-				t,
-				imuChartData,
-			) as ImuChartData[];
-		if (motorData)
-			motorChartData = appendDataPointToChartData(
-				motorData,
-				t,
-				motorChartData,
-			) as MotorChartData[];
-		if (stmTaskData) {
-			stmTaskTableData = updateTaskTable(
-				stmTaskTableData,
-				stmTaskData,
-				stmTaskStackSizes,
-			);
-		}
-		if (espTaskData) {
-			for (const task_name in espTaskData) {
-				if (espTaskData[task_name].stackSize) {
-					espTaskStackSizes[task_name] = espTaskData[task_name].stackSize;
-				}
-			}
-			espTaskTableData = updateTaskTable(
-				espTaskTableData,
-				espTaskData,
-				espTaskStackSizes,
-			);
-		}
-
-		// serviceStatusData.sort((a, b) => b.cpuUsage - a.cpuUsage);
-	};
-
 	const percentToLightness = (percent: number) => {
 		percent = Math.min(percent, 100);
 		const x = percent / 100;
@@ -435,6 +387,61 @@
 			`${API_ADDRESS}/api/streams/${dataTab == "motor" ? "start" : "stop"}/motor`,
 		);
 	};
+
+	onMount(() => {
+		ws.onmessage = (event) => {
+			const data: WsData = JSON.parse(event.data);
+			const stmTaskData = data.stmCpuUsage;
+			const espTaskData = data.espCpuUsage;
+			const imuData = data.imu;
+			const motorData = data.motor;
+			const heapData = data.espHeap;
+			const t = data.microseconds;
+			if (heapData)
+				heapChartData = appendDataPointToChartData(
+					heapData,
+					t,
+					heapChartData,
+				) as HeapChartDataType[];
+			if (imuData)
+				imuChartData = appendDataPointToChartData(
+					imuData,
+					t,
+					imuChartData,
+				) as ImuChartData[];
+			if (motorData)
+				motorChartData = appendDataPointToChartData(
+					motorData,
+					t,
+					motorChartData,
+				) as MotorChartData[];
+			if (stmTaskData) {
+				stmTaskTableData = updateTaskTable(
+					stmTaskTableData,
+					stmTaskData,
+					stmTaskStackSizes,
+				);
+			}
+			if (espTaskData) {
+				for (const task_name in espTaskData) {
+					if (espTaskData[task_name].stackSize) {
+						espTaskStackSizes[task_name] = espTaskData[task_name].stackSize;
+					}
+				}
+				espTaskTableData = updateTaskTable(
+					espTaskTableData,
+					espTaskData,
+					espTaskStackSizes,
+				);
+			}
+		};
+		return async () => {
+			fetch(`${API_ADDRESS}/api/streams/stop/imu`);
+			fetch(`${API_ADDRESS}/api/streams/stop/stm_cpu_usage`);
+			fetch(`${API_ADDRESS}/api/streams/stop/esp_cpu_usage`);
+			fetch(`${API_ADDRESS}/api/streams/stop/motor`);
+		};
+	});
 </script>
 
 <Tabs.Root
@@ -462,8 +469,8 @@
 					</div>
 				</div>
 			{:else}
-				<Table.Root class="[&_tr]:hover:bg-background">
-					<Table.Header>
+				<Table.Root class="[&_tr]:hover:bg-background [&_thead]:sticky">
+					<Table.Header class="">
 						<Table.Row>
 							<Table.Head>Service</Table.Head>
 							<Table.Head>CPU Usage</Table.Head>
