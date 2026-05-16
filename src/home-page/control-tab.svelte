@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/button/button.svelte";
-	import { PowerIcon } from "lucide-svelte";
+	import { LinkIcon, PowerIcon } from "lucide-svelte";
 	import * as Tabs from "$lib/components/ui/tabs";
 	import Slider from "$lib/components/ui/slider/slider.svelte";
 	import { debounce, sleep } from "$lib/utils";
@@ -15,12 +15,14 @@
 	let running = $state(false);
 	let loading = $state(true);
 	let mode: RunningMode = $state("manual");
-	let left_automatic_timeout = $state(0);
-	let right_automatic_timeout = $state(0);
-	let left_automatic_torque = $state(0);
-	let right_automatic_torque = $state(0);
-	let left_automatic_velocity_threshold = $state(0);
-	let right_automatic_velocity_threshold = $state(0);
+	let leftAutomaticTimeout = $state(0);
+	let rightAutomaticTimeout = $state(0);
+	let leftAutomaticTorque = $state(0);
+	let rightAutomaticTorque = $state(0);
+	let leftAutomaticVelocityThreshold = $state(0);
+	let rightAutomaticVelocityThreshold = $state(0);
+	let leftAutomaticLinked = $state(false);
+	let rightAutomaticLinked = $state(false);
 
 	type RunningMode = "manual" | "automatic" | "semi-automatic" | "smart";
 
@@ -105,6 +107,67 @@
 		);
 	};
 
+	const onAutomaticLeftLinkClicked = () => {
+		leftAutomaticLinked = !leftAutomaticLinked;
+		if (leftAutomaticLinked && rightAutomaticLinked) {
+			rightAutomaticLinked = false;
+		}
+		if (leftAutomaticLinked) {
+			leftAutomaticTimeout = rightAutomaticTimeout;
+			leftAutomaticTorque = rightAutomaticTorque;
+			leftAutomaticVelocityThreshold = leftAutomaticVelocityThreshold;
+		}
+	};
+
+	const onAutomaticRightLinkClicked = () => {
+		rightAutomaticLinked = !rightAutomaticLinked;
+		if (rightAutomaticLinked && leftAutomaticLinked) {
+			leftAutomaticLinked = false;
+		}
+		if (rightAutomaticLinked) {
+			rightAutomaticTimeout = leftAutomaticTimeout;
+			rightAutomaticTorque = leftAutomaticTorque;
+			leftAutomaticVelocityThreshold = leftAutomaticVelocityThreshold;
+		}
+	};
+
+	const onAutomaticLeftTimeoutChanged = (val: number) => {
+		leftAutomaticTimeout = val;
+		if (rightAutomaticLinked) {
+			rightAutomaticTimeout = val;
+		}
+	};
+	const onAutomaticLeftTorqueChanged = (val: number) => {
+		leftAutomaticTorque = val;
+		if (rightAutomaticLinked) {
+			rightAutomaticTorque = val;
+		}
+	};
+	const onAutomaticLeftVelocityThresholdChanged = (val: number) => {
+		leftAutomaticVelocityThreshold = val;
+		if (rightAutomaticLinked) {
+			rightAutomaticVelocityThreshold = val;
+		}
+	};
+	const onAutomaticRightTimeoutChanged = (val: number) => {
+		rightAutomaticTimeout = val;
+		if (leftAutomaticLinked) {
+			leftAutomaticTimeout = val;
+		}
+	};
+	const onAutomaticRightTorqueChanged = (val: number) => {
+		rightAutomaticTorque = val;
+		if (leftAutomaticLinked) {
+			leftAutomaticTorque = val;
+		}
+	};
+	const onAutomaticRightVelocityThresholdChanged = (val: number) => {
+		rightAutomaticVelocityThreshold = val;
+		if (leftAutomaticLinked) {
+			leftAutomaticVelocityThreshold = val;
+		}
+	};
+
 	onMount(() => {
 		loadStates();
 		setRtc();
@@ -133,43 +196,58 @@
 					<div class="w-full flex gap-4 p-4">
 						<Card.Root class="w-full">
 							<Card.Header>
-								<Card.Title>Left Leg</Card.Title>
-								<Card.Content>
+								<Card.Title class="flex items-center gap-2">
+									<Button
+										variant={leftAutomaticLinked ? "default" : "outline"}
+										size="icon"
+										onclick={onAutomaticLeftLinkClicked}
+									>
+										<LinkIcon />
+									</Button>
+									<div>Left Leg</div>
+								</Card.Title>
+								<Card.Content class="px-0 pt-4">
 									<div class="flex flex-col gap-4">
 										<div class="flex flex-col gap-2">
 											<div>
-												Time: {left_automatic_timeout}%
+												Time: {leftAutomaticTimeout}%
 											</div>
 											<Slider
 												type="single"
 												min={0}
 												max={100}
 												step={1}
-												bind:value={left_automatic_timeout}
+												value={leftAutomaticTimeout}
+												onValueChange={onAutomaticLeftTimeoutChanged}
+												disabled={leftAutomaticLinked}
 											></Slider>
 										</div>
 										<div class="flex flex-col gap-2">
 											<div>
-												Torque: {left_automatic_torque}%
+												Torque: {leftAutomaticTorque}%
 											</div>
 											<Slider
 												type="single"
 												min={0}
 												max={100}
 												step={1}
-												bind:value={left_automatic_torque}
+												value={leftAutomaticTorque}
+												onValueChange={onAutomaticLeftTorqueChanged}
+												disabled={leftAutomaticLinked}
 											></Slider>
 										</div>
 										<div class="flex flex-col gap-2">
 											<div>
-												Velocity Threshold: {left_automatic_velocity_threshold}%
+												Velocity: {leftAutomaticVelocityThreshold}%
 											</div>
 											<Slider
 												type="single"
 												min={0}
 												max={100}
 												step={1}
-												bind:value={left_automatic_velocity_threshold}
+												value={leftAutomaticVelocityThreshold}
+												onValueChange={onAutomaticLeftVelocityThresholdChanged}
+												disabled={leftAutomaticLinked}
 											></Slider>
 										</div>
 									</div>
@@ -178,43 +256,58 @@
 						</Card.Root>
 						<Card.Root class="w-full">
 							<Card.Header>
-								<Card.Title>Right Leg</Card.Title>
-								<Card.Content>
+								<Card.Title class="flex items-center gap-2">
+									<Button
+										variant={rightAutomaticLinked ? "default" : "outline"}
+										size="icon"
+										onclick={onAutomaticRightLinkClicked}
+									>
+										<LinkIcon />
+									</Button>
+									<div>Left Leg</div>
+								</Card.Title>
+								<Card.Content class="px-0 pt-4">
 									<div class="flex flex-col gap-4">
 										<div class="flex flex-col gap-2">
 											<div>
-												Time: {right_automatic_timeout}%
+												Time: {rightAutomaticTimeout}%
 											</div>
 											<Slider
 												type="single"
 												min={0}
 												max={100}
 												step={1}
-												bind:value={right_automatic_timeout}
+												value={rightAutomaticTimeout}
+												onValueChange={onAutomaticRightTimeoutChanged}
+												disabled={rightAutomaticLinked}
 											></Slider>
 										</div>
 										<div class="flex flex-col gap-2">
 											<div>
-												Torque: {right_automatic_torque}%
+												Torque: {rightAutomaticTorque}%
 											</div>
 											<Slider
 												type="single"
 												min={0}
 												max={100}
 												step={1}
-												bind:value={right_automatic_torque}
+												value={rightAutomaticTorque}
+												onValueChange={onAutomaticRightTorqueChanged}
+												disabled={rightAutomaticLinked}
 											></Slider>
 										</div>
 										<div class="flex flex-col gap-2">
 											<div>
-												Velocity Threshold: {right_automatic_velocity_threshold}%
+												Velocity: {rightAutomaticVelocityThreshold}%
 											</div>
 											<Slider
 												type="single"
 												min={0}
 												max={100}
 												step={1}
-												bind:value={right_automatic_velocity_threshold}
+												value={rightAutomaticVelocityThreshold}
+												onValueChange={onAutomaticRightVelocityThresholdChanged}
+												disabled={rightAutomaticLinked}
 											></Slider>
 										</div>
 									</div>
