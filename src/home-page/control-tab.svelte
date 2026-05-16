@@ -168,6 +168,24 @@
 		}
 	};
 
+	const onAutomaticParamCommit = async () => {
+		await fetch(`${API_ADDRESS}/api/automatic/params`, {
+			method: "PUT",
+			body: JSON.stringify({
+				left: {
+					timeout: leftAutomaticTimeout,
+					torque: leftAutomaticTorque,
+					velocityThreshold: leftAutomaticVelocityThreshold,
+				},
+				right: {
+					timeout: rightAutomaticTimeout,
+					torque: rightAutomaticTorque,
+					velocityThreshold: rightAutomaticVelocityThreshold,
+				},
+			}),
+		});
+	};
+
 	onMount(() => {
 		loadStates();
 		setRtc();
@@ -219,6 +237,7 @@
 												step={1}
 												value={leftAutomaticTimeout}
 												onValueChange={onAutomaticLeftTimeoutChanged}
+												onValueCommit={onAutomaticParamCommit}
 												disabled={leftAutomaticLinked}
 											></Slider>
 										</div>
@@ -233,6 +252,7 @@
 												step={1}
 												value={leftAutomaticTorque}
 												onValueChange={onAutomaticLeftTorqueChanged}
+												onValueCommit={onAutomaticParamCommit}
 												disabled={leftAutomaticLinked}
 											></Slider>
 										</div>
@@ -247,6 +267,7 @@
 												step={1}
 												value={leftAutomaticVelocityThreshold}
 												onValueChange={onAutomaticLeftVelocityThresholdChanged}
+												onValueCommit={onAutomaticParamCommit}
 												disabled={leftAutomaticLinked}
 											></Slider>
 										</div>
@@ -279,6 +300,7 @@
 												step={1}
 												value={rightAutomaticTimeout}
 												onValueChange={onAutomaticRightTimeoutChanged}
+												onValueCommit={onAutomaticParamCommit}
 												disabled={rightAutomaticLinked}
 											></Slider>
 										</div>
@@ -293,6 +315,7 @@
 												step={1}
 												value={rightAutomaticTorque}
 												onValueChange={onAutomaticRightTorqueChanged}
+												onValueCommit={onAutomaticParamCommit}
 												disabled={rightAutomaticLinked}
 											></Slider>
 										</div>
@@ -307,6 +330,7 @@
 												step={1}
 												value={rightAutomaticVelocityThreshold}
 												onValueChange={onAutomaticRightVelocityThresholdChanged}
+												onValueCommit={onAutomaticParamCommit}
 												disabled={rightAutomaticLinked}
 											></Slider>
 										</div>
@@ -328,6 +352,7 @@
 								class="max-w-[70%]"
 								onValueChange={onLeftSliderValueChange}
 							/>
+
 							<Slider
 								type="single"
 								bind:value={rightSliderValue}
