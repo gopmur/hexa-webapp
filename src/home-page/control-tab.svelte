@@ -8,12 +8,19 @@
 	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
 	import { onMount } from "svelte";
 	import { getWebSocket } from "$src/context/ws";
+	import * as Card from "$lib/components/ui/card/index.js";
 
-	let rightSliderValue = 50;
-	let leftSliderValue = 50;
-	let running = false;
-	let loading = true;
-	let mode: RunningMode = "manual";
+	let rightSliderValue = $state(50);
+	let leftSliderValue = $state(50);
+	let running = $state(false);
+	let loading = $state(true);
+	let mode: RunningMode = $state("manual");
+	let left_automatic_timeout = $state(0);
+	let right_automatic_timeout = $state(0);
+	let left_automatic_torque = $state(0);
+	let right_automatic_torque = $state(0);
+	let left_automatic_velocity_threshold = $state(0);
+	let right_automatic_velocity_threshold = $state(0);
 
 	type RunningMode = "manual" | "automatic" | "semi-automatic" | "smart";
 
@@ -121,7 +128,101 @@
 				</Tabs.Trigger>
 				<Tabs.Trigger class="flex flex-col" value="smart">Smart</Tabs.Trigger>
 			</Tabs.List>
-			<div class="h-full flex flex-col overflow-auto">
+			<div class="h-full w-full flex flex-col overflow-auto">
+				<Tabs.Content value="automatic">
+					<div class="w-full flex gap-4 p-4">
+						<Card.Root class="w-full">
+							<Card.Header>
+								<Card.Title>Left Leg</Card.Title>
+								<Card.Content>
+									<div class="flex flex-col gap-4">
+										<div class="flex flex-col gap-2">
+											<div>
+												Time: {left_automatic_timeout}%
+											</div>
+											<Slider
+												type="single"
+												min={0}
+												max={100}
+												step={1}
+												bind:value={left_automatic_timeout}
+											></Slider>
+										</div>
+										<div class="flex flex-col gap-2">
+											<div>
+												Torque: {left_automatic_torque}%
+											</div>
+											<Slider
+												type="single"
+												min={0}
+												max={100}
+												step={1}
+												bind:value={left_automatic_torque}
+											></Slider>
+										</div>
+										<div class="flex flex-col gap-2">
+											<div>
+												Velocity Threshold: {left_automatic_velocity_threshold}%
+											</div>
+											<Slider
+												type="single"
+												min={0}
+												max={100}
+												step={1}
+												bind:value={left_automatic_velocity_threshold}
+											></Slider>
+										</div>
+									</div>
+								</Card.Content>
+							</Card.Header>
+						</Card.Root>
+						<Card.Root class="w-full">
+							<Card.Header>
+								<Card.Title>Right Leg</Card.Title>
+								<Card.Content>
+									<div class="flex flex-col gap-4">
+										<div class="flex flex-col gap-2">
+											<div>
+												Time: {right_automatic_timeout}%
+											</div>
+											<Slider
+												type="single"
+												min={0}
+												max={100}
+												step={1}
+												bind:value={right_automatic_timeout}
+											></Slider>
+										</div>
+										<div class="flex flex-col gap-2">
+											<div>
+												Torque: {right_automatic_torque}%
+											</div>
+											<Slider
+												type="single"
+												min={0}
+												max={100}
+												step={1}
+												bind:value={right_automatic_torque}
+											></Slider>
+										</div>
+										<div class="flex flex-col gap-2">
+											<div>
+												Velocity Threshold: {right_automatic_velocity_threshold}%
+											</div>
+											<Slider
+												type="single"
+												min={0}
+												max={100}
+												step={1}
+												bind:value={right_automatic_velocity_threshold}
+											></Slider>
+										</div>
+									</div>
+								</Card.Content>
+							</Card.Header>
+						</Card.Root>
+					</div>
+				</Tabs.Content>
 				<Tabs.Content value="manual">
 					<div class="w-full flex justify-center">
 						<div class="flex justify-between w-40 pt-5">
