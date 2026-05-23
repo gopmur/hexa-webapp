@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/button/button.svelte";
-	import { LinkIcon, PowerIcon } from "lucide-svelte";
+	import { LinkIcon, PauseIcon, PlayIcon, PowerIcon } from "lucide-svelte";
 	import * as Tabs from "$lib/components/ui/tabs";
 	import Slider from "$lib/components/ui/slider/slider.svelte";
 	import { debounce, sleep } from "$lib/utils";
@@ -10,28 +10,117 @@
 	import { getWebSocket } from "$src/context/ws";
 	import * as Card from "$lib/components/ui/card/index.js";
 
-	let rightSliderValue = $state(50);
-	let leftSliderValue = $state(50);
-	let running = $state(false);
 	let loading = $state(true);
-	let mode: RunningMode = $state("manual");
-	let leftAutomaticTimeout = $state(0);
-	let rightAutomaticTimeout = $state(0);
-	let leftAutomaticTorque = $state(0);
-	let rightAutomaticTorque = $state(0);
-	let leftAutomaticVelocityThreshold = $state(0);
-	let rightAutomaticVelocityThreshold = $state(0);
 	let leftAutomaticLinked = $state(false);
 	let rightAutomaticLinked = $state(false);
 
 	type RunningMode = "manual" | "automatic" | "semi-automatic" | "smart";
 
-	type ManualStates = {
-		running: boolean;
-		rightTorque: number;
-		leftTorque: number;
-		mode: RunningMode;
+	type ManualControlParamsLeg = {
+		torque: number;
 	};
+
+	type ManualControlParams = {
+		left: ManualControlParamsLeg;
+		right: ManualControlParamsLeg;
+	};
+
+	type AutomaticControlParamsLeg = {
+		velocityThreshold: number;
+		torque: number;
+		timeout: number;
+	};
+
+	type AutomaticControlParams = {
+		right: AutomaticControlParamsLeg;
+		left: AutomaticControlParamsLeg;
+	};
+
+	type SemiautomaticControlParamsLeg = {
+		torque: number;
+		delay: number;
+		timeout: number;
+	};
+
+	type SemiautomaticControlParams = {
+		weakLeg: "left" | "right";
+		startAssistAngle: number;
+		stopAssistAngle: number;
+		left: SemiautomaticControlParamsLeg;
+		right: SemiautomaticControlParamsLeg;
+	};
+
+	type SmartControlParamsLeg = {
+		torque: number;
+	};
+
+	type SmartControlParams = {
+		left: SmartControlParamsLeg;
+		right: SmartControlParamsLeg;
+	};
+
+	type ControlParams = {
+		manual: ManualControlParams;
+		automatic: AutomaticControlParams;
+		semiautomatic: SemiautomaticControlParams;
+		smart: SmartControlParams;
+	};
+
+	type ControlStates = {
+		running: boolean;
+		mode: RunningMode;
+		controlParams: ControlParams;
+	};
+
+	let controlStates: ControlStates = $state({
+		running: false,
+		mode: "manual",
+		controlParams: {
+			manual: {
+				right: {
+					torque: 0,
+				},
+				left: {
+					torque: 0,
+				},
+			},
+			automatic: {
+				right: {
+					velocityThreshold: 0,
+					torque: 0,
+					timeout: 0,
+				},
+				left: {
+					velocityThreshold: 0,
+					torque: 0,
+					timeout: 0,
+				},
+			},
+			semiautomatic: {
+				weakLeg: "left",
+				startAssistAngle: 0,
+				stopAssistAngle: 0,
+				right: {
+					torque: 0,
+					delay: 0,
+					timeout: 0,
+				},
+				left: {
+					torque: 0,
+					delay: 0,
+					timeout: 0,
+				},
+			},
+			smart: {
+				right: {
+					torque: 0,
+				},
+				left: {
+					torque: 0,
+				},
+			},
+		},
+	});
 
 	const ws = getWebSocket();
 
@@ -40,8 +129,8 @@
 		if (!response.ok) {
 			throw new Error();
 		}
-		const responseData = await response.json();
-		return responseData as ManualStates;
+		const responseData: ControlStates = await response.json();
+		return responseData;
 	};
 
 	const setRtc = async () => {
@@ -68,11 +157,7 @@
 		loading = true;
 		while (true) {
 			try {
-				const states = await getStatesFromApi();
-				running = states.running;
-				rightSliderValue = states.rightTorque;
-				leftSliderValue = states.leftTorque;
-				mode = states.mode;
+				controlStates = await getStatesFromApi();
 				break;
 			} catch {
 				await sleep(1000);
@@ -82,9 +167,10 @@
 		loading = false;
 	};
 
-	const onPowerClick = async () => {
-		running = !running;
-		if (running) await fetch(`${API_ADDRESS}/api/start`, { method: "PUT" });
+	const onRunningToggle = async () => {
+		controlStates.running = !controlStates.running;
+		if (controlStates.running)
+			await fetch(`${API_ADDRESS}/api/start`, { method: "PUT" });
 		else await fetch(`${API_ADDRESS}/api/stop`, { method: "PUT" });
 	};
 
@@ -113,9 +199,12 @@
 			rightAutomaticLinked = false;
 		}
 		if (leftAutomaticLinked) {
-			leftAutomaticTimeout = rightAutomaticTimeout;
-			leftAutomaticTorque = rightAutomaticTorque;
-			leftAutomaticVelocityThreshold = leftAutomaticVelocityThreshold;
+			controlStates.controlParams.automatic.left.timeout =
+				controlStates.controlParams.automatic.right.timeout;
+			controlStates.controlParams.automatic.left.torque =
+				controlStates.controlParams.automatic.right.torque;
+			controlStates.controlParams.automatic.left.velocityThreshold =
+				controlStates.controlParams.automatic.right.velocityThreshold;
 		}
 	};
 
@@ -125,46 +214,49 @@
 			leftAutomaticLinked = false;
 		}
 		if (rightAutomaticLinked) {
-			rightAutomaticTimeout = leftAutomaticTimeout;
-			rightAutomaticTorque = leftAutomaticTorque;
-			leftAutomaticVelocityThreshold = leftAutomaticVelocityThreshold;
+			controlStates.controlParams.automatic.right.timeout =
+				controlStates.controlParams.automatic.left.timeout;
+			controlStates.controlParams.automatic.right.torque =
+				controlStates.controlParams.automatic.left.torque;
+			controlStates.controlParams.automatic.right.velocityThreshold =
+				controlStates.controlParams.automatic.left.velocityThreshold;
 		}
 	};
 
 	const onAutomaticLeftTimeoutChanged = (val: number) => {
-		leftAutomaticTimeout = val;
+		controlStates.controlParams.automatic.left.timeout = val;
 		if (rightAutomaticLinked) {
-			rightAutomaticTimeout = val;
+			controlStates.controlParams.automatic.right.timeout = val;
 		}
 	};
 	const onAutomaticLeftTorqueChanged = (val: number) => {
-		leftAutomaticTorque = val;
+		controlStates.controlParams.automatic.left.torque = val;
 		if (rightAutomaticLinked) {
-			rightAutomaticTorque = val;
+			controlStates.controlParams.automatic.right.torque = val;
 		}
 	};
 	const onAutomaticLeftVelocityThresholdChanged = (val: number) => {
-		leftAutomaticVelocityThreshold = val;
+		controlStates.controlParams.automatic.left.velocityThreshold = val;
 		if (rightAutomaticLinked) {
-			rightAutomaticVelocityThreshold = val;
+			controlStates.controlParams.automatic.right.velocityThreshold = val;
 		}
 	};
 	const onAutomaticRightTimeoutChanged = (val: number) => {
-		rightAutomaticTimeout = val;
+		controlStates.controlParams.automatic.right.timeout = val;
 		if (leftAutomaticLinked) {
-			leftAutomaticTimeout = val;
+			controlStates.controlParams.automatic.left.timeout = val;
 		}
 	};
 	const onAutomaticRightTorqueChanged = (val: number) => {
-		rightAutomaticTorque = val;
+		controlStates.controlParams.automatic.right.torque = val;
 		if (leftAutomaticLinked) {
-			leftAutomaticTorque = val;
+			controlStates.controlParams.automatic.left.torque = val;
 		}
 	};
 	const onAutomaticRightVelocityThresholdChanged = (val: number) => {
-		rightAutomaticVelocityThreshold = val;
+		controlStates.controlParams.automatic.right.velocityThreshold = val;
 		if (leftAutomaticLinked) {
-			leftAutomaticVelocityThreshold = val;
+			controlStates.controlParams.automatic.left.velocityThreshold = val;
 		}
 	};
 
@@ -173,14 +265,16 @@
 			method: "PUT",
 			body: JSON.stringify({
 				left: {
-					timeout: leftAutomaticTimeout,
-					torque: leftAutomaticTorque,
-					velocityThreshold: leftAutomaticVelocityThreshold,
+					timeout: controlStates.controlParams.automatic.left.timeout,
+					torque: controlStates.controlParams.automatic.left.torque,
+					velocityThreshold:
+						controlStates.controlParams.automatic.left.velocityThreshold,
 				},
 				right: {
-					timeout: rightAutomaticTimeout,
-					torque: rightAutomaticTorque,
-					velocityThreshold: rightAutomaticVelocityThreshold,
+					timeout: controlStates.controlParams.automatic.right.timeout,
+					torque: controlStates.controlParams.automatic.right.torque,
+					velocityThreshold:
+						controlStates.controlParams.automatic.right.velocityThreshold,
 				},
 			}),
 		});
@@ -195,7 +289,7 @@
 <div class="w-full h-full flex-col items-center overflow-hidden">
 	{#if !loading}
 		<Tabs.Root
-			value={mode}
+			value={controlStates.mode}
 			class="w-full h-full flex flex-col gap-0"
 			onValueChange={onModeChange}
 		>
@@ -228,14 +322,16 @@
 									<div class="flex flex-col gap-4">
 										<div class="flex flex-col gap-2">
 											<div>
-												Time: {leftAutomaticTimeout}%
+												Time: {controlStates.controlParams.automatic.left
+													.timeout}%
 											</div>
 											<Slider
 												type="single"
 												min={0}
 												max={100}
 												step={1}
-												value={leftAutomaticTimeout}
+												value={controlStates.controlParams.automatic.left
+													.timeout}
 												onValueChange={onAutomaticLeftTimeoutChanged}
 												onValueCommit={onAutomaticParamCommit}
 												disabled={leftAutomaticLinked}
@@ -243,14 +339,16 @@
 										</div>
 										<div class="flex flex-col gap-2">
 											<div>
-												Torque: {leftAutomaticTorque}%
+												Torque: {controlStates.controlParams.automatic.left
+													.torque}%
 											</div>
 											<Slider
 												type="single"
 												min={0}
 												max={100}
 												step={1}
-												value={leftAutomaticTorque}
+												value={controlStates.controlParams.automatic.left
+													.torque}
 												onValueChange={onAutomaticLeftTorqueChanged}
 												onValueCommit={onAutomaticParamCommit}
 												disabled={leftAutomaticLinked}
@@ -258,14 +356,16 @@
 										</div>
 										<div class="flex flex-col gap-2">
 											<div>
-												Velocity: {leftAutomaticVelocityThreshold}%
+												Velocity: {controlStates.controlParams.automatic.left
+													.velocityThreshold}%
 											</div>
 											<Slider
 												type="single"
 												min={0}
 												max={100}
 												step={1}
-												value={leftAutomaticVelocityThreshold}
+												value={controlStates.controlParams.automatic.left
+													.velocityThreshold}
 												onValueChange={onAutomaticLeftVelocityThresholdChanged}
 												onValueCommit={onAutomaticParamCommit}
 												disabled={leftAutomaticLinked}
@@ -291,14 +391,16 @@
 									<div class="flex flex-col gap-4">
 										<div class="flex flex-col gap-2">
 											<div>
-												Time: {rightAutomaticTimeout}%
+												Time: {controlStates.controlParams.automatic.right
+													.timeout}%
 											</div>
 											<Slider
 												type="single"
 												min={0}
 												max={100}
 												step={1}
-												value={rightAutomaticTimeout}
+												value={controlStates.controlParams.automatic.right
+													.timeout}
 												onValueChange={onAutomaticRightTimeoutChanged}
 												onValueCommit={onAutomaticParamCommit}
 												disabled={rightAutomaticLinked}
@@ -306,14 +408,16 @@
 										</div>
 										<div class="flex flex-col gap-2">
 											<div>
-												Torque: {rightAutomaticTorque}%
+												Torque: {controlStates.controlParams.automatic.right
+													.torque}%
 											</div>
 											<Slider
 												type="single"
 												min={0}
 												max={100}
 												step={1}
-												value={rightAutomaticTorque}
+												value={controlStates.controlParams.automatic.right
+													.torque}
 												onValueChange={onAutomaticRightTorqueChanged}
 												onValueCommit={onAutomaticParamCommit}
 												disabled={rightAutomaticLinked}
@@ -321,14 +425,16 @@
 										</div>
 										<div class="flex flex-col gap-2">
 											<div>
-												Velocity: {rightAutomaticVelocityThreshold}%
+												Velocity: {controlStates.controlParams.automatic.right
+													.velocityThreshold}%
 											</div>
 											<Slider
 												type="single"
 												min={0}
 												max={100}
 												step={1}
-												value={rightAutomaticVelocityThreshold}
+												value={controlStates.controlParams.automatic.right
+													.velocityThreshold}
 												onValueChange={onAutomaticRightVelocityThresholdChanged}
 												onValueCommit={onAutomaticParamCommit}
 												disabled={rightAutomaticLinked}
@@ -345,7 +451,7 @@
 						<div class="flex justify-between w-40 pt-5">
 							<Slider
 								type="single"
-								bind:value={leftSliderValue}
+								bind:value={controlStates.controlParams.manual.left.torque}
 								max={10}
 								step={0.1}
 								orientation="vertical"
@@ -355,7 +461,7 @@
 
 							<Slider
 								type="single"
-								bind:value={rightSliderValue}
+								bind:value={controlStates.controlParams.manual.right.torque}
 								max={10}
 								step={0.1}
 								orientation="vertical"
@@ -367,11 +473,16 @@
 				</Tabs.Content>
 				<div class="w-full h-full flex flex-col items-center justify-center">
 					<Button
-						onclick={onPowerClick}
+						onclick={onRunningToggle}
 						variant="default"
-						class={`rounded-full h-40 w-40 active:transition-all active:scale-[0.98] ${running ? "bg-success hover:bg-success" : "bg-destructive hover:bg-destructive"}`}
-						><PowerIcon class="size-20" /></Button
+						class={`rounded-full h-40 w-40 active:transition-all active:scale-[0.98] ${controlStates.running ? "bg-success hover:bg-success" : "bg-destructive hover:bg-destructive"}`}
 					>
+						{#if controlStates.running}
+							<PauseIcon class="size-20" />
+						{:else}
+							<PlayIcon class="size-20" />
+						{/if}
+					</Button>
 				</div>
 			</div>
 		</Tabs.Root>
