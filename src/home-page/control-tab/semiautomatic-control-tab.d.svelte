@@ -16,12 +16,14 @@
 		if (val) {
 			controlParams.weakLeg = "left";
 		}
+		onParamCommit();
 	};
 
 	const onRightLegSwitchClicked = (val: boolean) => {
 		if (val) {
 			controlParams.weakLeg = "right";
 		}
+		onParamCommit();
 	};
 
 	const onLeftLinkClicked = () => {
@@ -34,6 +36,7 @@
 			controlParams.left.torque = controlParams.right.torque;
 			controlParams.left.delay = controlParams.right.delay;
 		}
+		onParamCommit();
 	};
 
 	const onRightLinkClicked = () => {
@@ -46,6 +49,7 @@
 			controlParams.right.torque = controlParams.left.torque;
 			controlParams.right.delay = controlParams.left.delay;
 		}
+		onParamCommit();
 	};
 
 	const onLeftTimeoutChanged = (val: number) => {
@@ -88,12 +92,15 @@
 	const onAssistAngleChange = ([a, b]: number[]) => {
 		controlParams.startAssistAngle = Math.min(a, b);
 		controlParams.stopAssistAngle = Math.max(a, b);
-	}
+	};
 
 	const onParamCommit = async () => {
-		await fetch(`${API_ADDRESS}/api/automatic/params`, {
+		await fetch(`${API_ADDRESS}/api/semiautomatic/params`, {
 			method: "PUT",
 			body: JSON.stringify({
+				weakLeg: controlParams.weakLeg,
+				startAssistAngle: controlParams.startAssistAngle,
+				stopAssistAngle: controlParams.stopAssistAngle,
 				left: {
 					timeout: controlParams.left.timeout,
 					torque: controlParams.left.torque,
@@ -122,6 +129,7 @@
 			<Slider
 				type="multiple"
 				onValueChange={onAssistAngleChange}
+				onValueCommit={onParamCommit}
 				value={[controlParams.startAssistAngle, controlParams.stopAssistAngle]}
 			/>
 		</Card.Content>

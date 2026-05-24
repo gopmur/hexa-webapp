@@ -162,7 +162,7 @@
 						bind:controlParams={controlStates.controlParams.smart}
 					/>
 				</Tabs.Content>
-				<div class="w-full h-full flex flex-col items-center justify-center">
+				<div class="w-full h-full flex flex-col items-center justify-end pb-16">
 					<Button
 						onclick={onRunningToggle}
 						variant="default"

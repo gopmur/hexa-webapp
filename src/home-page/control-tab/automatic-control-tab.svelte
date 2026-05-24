@@ -12,7 +12,7 @@
 	let leftLinked = $state(false);
 	let rightLinked = $state(false);
 
-	const onAutomaticLeftLinkClicked = () => {
+	const onLeftLinkClicked = () => {
 		leftLinked = !leftLinked;
 		if (leftLinked && rightLinked) {
 			rightLinked = false;
@@ -23,9 +23,10 @@
 			controlParams.left.velocityThreshold =
 				controlParams.right.velocityThreshold;
 		}
+		onParamCommit();
 	};
 
-	const onAutomaticRightLinkClicked = () => {
+	const onRightLinkClicked = () => {
 		rightLinked = !rightLinked;
 		if (rightLinked && leftLinked) {
 			leftLinked = false;
@@ -36,46 +37,48 @@
 			controlParams.right.velocityThreshold =
 				controlParams.left.velocityThreshold;
 		}
+		onParamCommit();
 	};
 
-	const onAutomaticLeftTimeoutChanged = (val: number) => {
+	const onLeftTimeoutChanged = (val: number) => {
 		controlParams.left.timeout = val;
 		if (rightLinked) {
 			controlParams.right.timeout = val;
 		}
 	};
-	const onAutomaticLeftTorqueChanged = (val: number) => {
+	const onLeftTorqueChanged = (val: number) => {
 		controlParams.left.torque = val;
 		if (rightLinked) {
 			controlParams.right.torque = val;
 		}
 	};
-	const onAutomaticLeftVelocityThresholdChanged = (val: number) => {
+	const onLeftVelocityThresholdChanged = (val: number) => {
 		controlParams.left.velocityThreshold = val;
 		if (rightLinked) {
 			controlParams.right.velocityThreshold = val;
 		}
 	};
-	const onAutomaticRightTimeoutChanged = (val: number) => {
+	const onRightTimeoutChanged = (val: number) => {
 		controlParams.right.timeout = val;
 		if (leftLinked) {
 			controlParams.left.timeout = val;
 		}
 	};
-	const onAutomaticRightTorqueChanged = (val: number) => {
+	const onRightTorqueChanged = (val: number) => {
 		controlParams.right.torque = val;
 		if (leftLinked) {
 			controlParams.left.torque = val;
 		}
 	};
-	const onAutomaticRightVelocityThresholdChanged = (val: number) => {
+
+	const onRightVelocityThresholdChanged = (val: number) => {
 		controlParams.right.velocityThreshold = val;
 		if (leftLinked) {
 			controlParams.left.velocityThreshold = val;
 		}
 	};
 
-	const onAutomaticParamCommit = async () => {
+	const onParamCommit = async () => {
 		await fetch(`${API_ADDRESS}/api/automatic/params`, {
 			method: "PUT",
 			body: JSON.stringify({
@@ -101,7 +104,7 @@
 				<Button
 					variant={leftLinked ? "default" : "outline"}
 					size="icon"
-					onclick={onAutomaticLeftLinkClicked}
+					onclick={onLeftLinkClicked}
 				>
 					<LinkIcon />
 				</Button>
@@ -119,8 +122,8 @@
 							max={100}
 							step={1}
 							value={controlParams.left.timeout}
-							onValueChange={onAutomaticLeftTimeoutChanged}
-							onValueCommit={onAutomaticParamCommit}
+							onValueChange={onLeftTimeoutChanged}
+							onValueCommit={onParamCommit}
 							disabled={leftLinked}
 						></Slider>
 					</div>
@@ -134,8 +137,8 @@
 							max={100}
 							step={1}
 							value={controlParams.left.torque}
-							onValueChange={onAutomaticLeftTorqueChanged}
-							onValueCommit={onAutomaticParamCommit}
+							onValueChange={onLeftTorqueChanged}
+							onValueCommit={onParamCommit}
 							disabled={leftLinked}
 						></Slider>
 					</div>
@@ -149,8 +152,8 @@
 							max={100}
 							step={1}
 							value={controlParams.left.velocityThreshold}
-							onValueChange={onAutomaticLeftVelocityThresholdChanged}
-							onValueCommit={onAutomaticParamCommit}
+							onValueChange={onLeftVelocityThresholdChanged}
+							onValueCommit={onParamCommit}
 							disabled={leftLinked}
 						></Slider>
 					</div>
@@ -164,7 +167,7 @@
 				<Button
 					variant={rightLinked ? "default" : "outline"}
 					size="icon"
-					onclick={onAutomaticRightLinkClicked}
+					onclick={onRightLinkClicked}
 				>
 					<LinkIcon />
 				</Button>
@@ -182,8 +185,8 @@
 							max={100}
 							step={1}
 							value={controlParams.right.timeout}
-							onValueChange={onAutomaticRightTimeoutChanged}
-							onValueCommit={onAutomaticParamCommit}
+							onValueChange={onRightTimeoutChanged}
+							onValueCommit={onParamCommit}
 							disabled={rightLinked}
 						></Slider>
 					</div>
@@ -197,8 +200,8 @@
 							max={100}
 							step={1}
 							value={controlParams.right.torque}
-							onValueChange={onAutomaticRightTorqueChanged}
-							onValueCommit={onAutomaticParamCommit}
+							onValueChange={onRightTorqueChanged}
+							onValueCommit={onParamCommit}
 							disabled={rightLinked}
 						></Slider>
 					</div>
@@ -212,8 +215,8 @@
 							max={100}
 							step={1}
 							value={controlParams.right.velocityThreshold}
-							onValueChange={onAutomaticRightVelocityThresholdChanged}
-							onValueCommit={onAutomaticParamCommit}
+							onValueChange={onRightVelocityThresholdChanged}
+							onValueCommit={onParamCommit}
 							disabled={rightLinked}
 						></Slider>
 					</div>
