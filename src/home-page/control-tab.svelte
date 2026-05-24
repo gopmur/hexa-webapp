@@ -12,10 +12,11 @@
 	import SemiautomaticControlTab from "./control-tab/semiautomatic-control-tab.d.svelte";
 	import SmartControlTab from "./control-tab/smart-control-tab.svelte";
 	import * as Card from "$lib/components/ui/card/index.js";
+	import { getWebSocket } from "$src/context/ws";
 
 	let loading = $state(true);
 
-	let controlStates: ControlStates = $state({
+	const initialParams: ControlStates = {
 		running: false,
 		mode: "manual",
 		controlParams: {
@@ -63,7 +64,44 @@
 				},
 			},
 		},
-	});
+	};
+
+	let controlStates: ControlStates = $state(initialParams);
+	const ws = getWebSocket();
+
+	const onResetParams = async () => {
+		let ok = true;
+		ws.send(
+			JSON.stringify({
+				leftTorque: 0,
+				rightTorque: 0,
+			}),
+		);
+		const requests: Promise<Response>[] = [];
+		requests.push(
+			fetch(`${API_ADDRESS}/api/automatic/params`, {
+				method: "PUT",
+				body: JSON.stringify(initialParams.controlParams.automatic),
+			}),
+		);
+		requests.push(
+			fetch(`${API_ADDRESS}/api/semiautomatic/params`, {
+				method: "PUT",
+				body: JSON.stringify(initialParams.controlParams.semiautomatic),
+			}),
+		);
+		requests.push(
+			fetch(`${API_ADDRESS}/api/smart/params`, {
+				method: "PUT",
+				body: JSON.stringify(initialParams.controlParams.smart),
+			}),
+		);
+		const responses = await Promise.all(requests);
+		const allOk = responses.every(r => r.ok);
+		if (allOk) {
+			loadStates();
+		}
+	};
 
 	const getStatesFromApi = async () => {
 		const response = await fetch(`${API_ADDRESS}/api/states`);
@@ -160,7 +198,7 @@
 								{/if}
 							</Button>
 							<div class="h-40 w-full flex flex-col justify-between gap-4">
-								<Button variant="outline" class="flex-1"
+								<Button variant="outline" class="flex-1" onclick={onResetParams}
 									>Reset Parameters</Button
 								>
 								<Button variant="outline" class="flex-1">Zero Pos</Button>
