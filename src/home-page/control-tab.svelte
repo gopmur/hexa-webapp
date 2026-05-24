@@ -11,6 +11,7 @@
 	import AutomaticControlTab from "./control-tab/automatic-control-tab.svelte";
 	import SemiautomaticControlTab from "./control-tab/semiautomatic-control-tab.d.svelte";
 	import SmartControlTab from "./control-tab/smart-control-tab.svelte";
+	import * as Card from "$lib/components/ui/card/index.js";
 
 	let loading = $state(true);
 
@@ -141,39 +142,53 @@
 				</Tabs.Trigger>
 				<Tabs.Trigger class="flex flex-col" value="smart">Smart</Tabs.Trigger>
 			</Tabs.List>
-			<div class="h-full w-full flex flex-col overflow-auto">
-				<Tabs.Content value="manual">
-					<ManualControlTab
-						bind:controlParams={controlStates.controlParams.manual}
-					/>
-				</Tabs.Content>
-				<Tabs.Content value="automatic">
-					<AutomaticControlTab
-						bind:controlParams={controlStates.controlParams.automatic}
-					/>
-				</Tabs.Content>
-				<Tabs.Content value="semi-automatic">
-					<SemiautomaticControlTab
-						bind:controlParams={controlStates.controlParams.semiautomatic}
-					/>
-				</Tabs.Content>
-				<Tabs.Content value="smart">
-					<SmartControlTab
-						bind:controlParams={controlStates.controlParams.smart}
-					/>
-				</Tabs.Content>
-				<div class="w-full h-full flex flex-col items-center justify-end pb-16">
-					<Button
-						onclick={onRunningToggle}
-						variant="default"
-						class={`rounded-full h-40 w-40 active:transition-all active:scale-[0.98] ${controlStates.running ? "bg-success hover:bg-success" : "bg-destructive hover:bg-destructive"}`}
-					>
-						{#if controlStates.running}
-							<PauseIcon class="size-20" />
-						{:else}
-							<PlayIcon class="size-20" />
-						{/if}
-					</Button>
+			<div class="h-[calc(100%-5rem)] overflow-auto">
+				<div class="w-full px-4 pt-4">
+					<Card.Root class="w-full">
+						<Card.Content
+							class="flex items-center h-full w-full justify-between gap-8"
+						>
+							<Button
+								onclick={onRunningToggle}
+								variant="default"
+								class={`rounded-full h-40 w-40 active:transition-all active:scale-[0.98] ${controlStates.running ? "bg-success hover:bg-success" : "bg-destructive hover:bg-destructive"}`}
+							>
+								{#if controlStates.running}
+									<PauseIcon class="size-20" />
+								{:else}
+									<PlayIcon class="size-20" />
+								{/if}
+							</Button>
+							<div class="h-40 w-full flex flex-col justify-between gap-4">
+								<Button variant="outline" class="flex-1"
+									>Reset Parameters</Button
+								>
+								<Button variant="outline" class="flex-1">Zero Pos</Button>
+							</div>
+						</Card.Content>
+					</Card.Root>
+				</div>
+				<div class="w-full flex flex-col">
+					<Tabs.Content value="manual">
+						<ManualControlTab
+							bind:controlParams={controlStates.controlParams.manual}
+						/>
+					</Tabs.Content>
+					<Tabs.Content value="automatic">
+						<AutomaticControlTab
+							bind:controlParams={controlStates.controlParams.automatic}
+						/>
+					</Tabs.Content>
+					<Tabs.Content value="semi-automatic" class="flex-0">
+						<SemiautomaticControlTab
+							bind:controlParams={controlStates.controlParams.semiautomatic}
+						/>
+					</Tabs.Content>
+					<Tabs.Content value="smart">
+						<SmartControlTab
+							bind:controlParams={controlStates.controlParams.smart}
+						/>
+					</Tabs.Content>
 				</div>
 			</div>
 		</Tabs.Root>

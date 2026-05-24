@@ -178,7 +178,7 @@
 			taskRecord.absentCounter++;
 		}
 		newTaskTableData = newTaskTableData.filter(
-			(serviceStatus) => serviceStatus.absentCounter < 1,
+			(serviceStatus) => serviceStatus.absentCounter < 10,
 		);
 		for (const name in receivedTaskData) {
 			const serviceStatus = newTaskTableData.find(
