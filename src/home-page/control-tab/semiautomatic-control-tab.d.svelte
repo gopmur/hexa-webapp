@@ -127,6 +127,9 @@
 				stop: {controlParams.stopAssistAngle}
 			</div>
 			<Slider
+				min={0}
+				max={1}
+				step={0.01}
 				type="multiple"
 				onValueChange={onAssistAngleChange}
 				onValueCommit={onParamCommit}
@@ -161,8 +164,8 @@
 						<Slider
 							type="single"
 							min={0}
-							max={100}
-							step={1}
+							max={1}
+							step={0.01}
 							value={controlParams.left.timeout}
 							onValueChange={onLeftTimeoutChanged}
 							onValueCommit={onParamCommit}
@@ -176,8 +179,8 @@
 						<Slider
 							type="single"
 							min={0}
-							max={100}
-							step={1}
+							max={1}
+							step={0.01}
 							value={controlParams.left.torque}
 							onValueChange={onLeftTorqueChanged}
 							onValueCommit={onParamCommit}
@@ -191,8 +194,8 @@
 						<Slider
 							type="single"
 							min={0}
-							max={100}
-							step={1}
+							max={1}
+							step={0.01}
 							value={controlParams.left.delay}
 							onValueChange={onLeftDelayChanged}
 							onValueCommit={onParamCommit}
@@ -228,8 +231,8 @@
 						<Slider
 							type="single"
 							min={0}
-							max={100}
-							step={1}
+							max={1}
+							step={0.01}
 							value={controlParams.right.timeout}
 							onValueChange={onRightTimeoutChanged}
 							onValueCommit={onParamCommit}
@@ -243,8 +246,8 @@
 						<Slider
 							type="single"
 							min={0}
-							max={100}
-							step={1}
+							max={1}
+							step={0.01}
 							value={controlParams.right.torque}
 							onValueChange={onRightTorqueChanged}
 							onValueCommit={onParamCommit}
@@ -258,8 +261,8 @@
 						<Slider
 							type="single"
 							min={0}
-							max={100}
-							step={1}
+							max={1}
+							step={0.01}
 							value={controlParams.right.delay}
 							onValueChange={onRightDelayChanged}
 							onValueCommit={onParamCommit}
