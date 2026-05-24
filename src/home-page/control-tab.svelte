@@ -9,6 +9,8 @@
 	import ManualControlTab from "./control-tab/manual-control-tab.svelte";
 	import type { ControlStates } from "./control-tab";
 	import AutomaticControlTab from "./control-tab/automatic-control-tab.svelte";
+	import SemiautomaticControlTab from "./control-tab/semiautomatic-control-tab.d.svelte";
+	import SmartControlTab from "./control-tab/smart-control-tab.svelte";
 
 	let loading = $state(true);
 
@@ -140,14 +142,24 @@
 				<Tabs.Trigger class="flex flex-col" value="smart">Smart</Tabs.Trigger>
 			</Tabs.List>
 			<div class="h-full w-full flex flex-col overflow-auto">
+				<Tabs.Content value="manual">
+					<ManualControlTab
+						bind:controlParams={controlStates.controlParams.manual}
+					/>
+				</Tabs.Content>
 				<Tabs.Content value="automatic">
 					<AutomaticControlTab
 						bind:controlParams={controlStates.controlParams.automatic}
 					/>
 				</Tabs.Content>
-				<Tabs.Content value="manual">
-					<ManualControlTab
-						bind:controlParams={controlStates.controlParams.manual}
+				<Tabs.Content value="semi-automatic">
+					<SemiautomaticControlTab
+						bind:controlParams={controlStates.controlParams.semiautomatic}
+					/>
+				</Tabs.Content>
+				<Tabs.Content value="smart">
+					<SmartControlTab
+						bind:controlParams={controlStates.controlParams.smart}
 					/>
 				</Tabs.Content>
 				<div class="w-full h-full flex flex-col items-center justify-center">

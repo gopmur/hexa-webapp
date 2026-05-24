@@ -3,9 +3,9 @@
 
 	import Slider from "$lib/components/ui/slider/slider.svelte";
 	import * as Card from "$lib/components/ui/card/index.js";
-	import type { AutomaticControlTabProps } from "./automatic-control-tab";
 	import { API_ADDRESS } from "$src/config";
 	import { LinkIcon } from "lucide-svelte";
+	import type { AutomaticControlTabProps } from "./automatic-control-tab";
 
 	let { controlParams = $bindable() }: AutomaticControlTabProps = $props();
 

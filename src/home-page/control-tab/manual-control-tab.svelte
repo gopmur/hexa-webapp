@@ -2,9 +2,8 @@
 	import Slider from "$lib/components/ui/slider/slider.svelte";
 	import { getWebSocket } from "$src/context/ws";
 	import type { ManualControlTabProps } from "./manual-control-tab";
-	let {
-		controlParams = $bindable()
-	}: ManualControlTabProps = $props();
+	import * as Card from "$lib/components/ui/card/index.js";
+	let { controlParams = $bindable() }: ManualControlTabProps = $props();
 	const ws = getWebSocket();
 
 	const onLeftSliderValueChange = async (value: number) => {
@@ -23,26 +22,35 @@
 	};
 </script>
 
-<div class="w-full flex justify-center">
-	<div class="flex justify-between w-40 pt-5">
-		<Slider
-			type="single"
-			bind:value={controlParams.left.torque}
-			max={10}
-			step={0.1}
-			orientation="vertical"
-			class="max-w-[70%]"
-			onValueChange={onLeftSliderValueChange}
-		/>
-
-		<Slider
-			type="single"
-			bind:value={controlParams.right.torque}
-			max={10}
-			step={0.1}
-			orientation="vertical"
-			class="max-w-[70%]"
-			onValueChange={onRightSliderValueChange}
-		/>
-	</div>
+<div class="w-full flex gap-4 p-4">
+	<Card.Root class="w-full">
+		<Card.Header>
+			<Card.Title class="flex items-center gap-2">Left Leg</Card.Title>
+		</Card.Header>
+		<Card.Content class="flex flex-col gap-2">
+			<dir>Torque: {controlParams.left.torque}</dir>
+			<Slider
+				type="single"
+				bind:value={controlParams.left.torque}
+				max={10}
+				step={0.1}
+				onValueChange={onLeftSliderValueChange}
+			/>
+		</Card.Content>
+	</Card.Root>
+	<Card.Root class="w-full">
+		<Card.Header>
+			<Card.Title class="flex items-center gap-2">Right Leg</Card.Title>
+		</Card.Header>
+		<Card.Content class="flex flex-col gap-2">
+			<dir>Torque: {controlParams.right.torque}</dir>
+			<Slider
+				type="single"
+				bind:value={controlParams.right.torque}
+				max={10}
+				step={0.1}
+				onValueChange={onRightSliderValueChange}
+			/>
+		</Card.Content>
+	</Card.Root>
 </div>
