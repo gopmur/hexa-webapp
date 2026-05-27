@@ -667,7 +667,7 @@
 								format: (d) => String(d / 1_000_000),
 							},
 						}}
-						yDomain={[32000, 39000]}
+						yDomain={[Math.PI / 2, Math.PI]}
 						xDomain={[
 							motorChartData.at(0)?.t,
 							Number(motorChartData.at(0)?.t) + MAX_T_SPAN,
