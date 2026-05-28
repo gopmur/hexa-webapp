@@ -465,12 +465,10 @@
 	</Tabs.List>
 
 	<div class="overflow-y-auto h-full">
-		<Tabs.Content value="stm-task-data">
+		<Tabs.Content value="stm-task-data" class="h-full">
 			{#if stmStackSizesLoading}
 				<div class="h-full w-full flex items-center justify-center">
-					<div class="flex flex-col gap-4 items-center">
-						<Spinner class="size-40" />
-					</div>
+					<Spinner class="size-40" />
 				</div>
 			{:else}
 				<Table.Root class="[&_tr]:hover:bg-background [&_thead]:sticky">
@@ -519,7 +517,7 @@
 				</Table.Root>
 			{/if}
 		</Tabs.Content>
-		<Tabs.Content value="esp-task-data" class="overflow-hidden">
+		<Tabs.Content value="esp-task-data" class="overflow-hidden h-full">
 			{#if espStackSizesLoading}
 				<div class="h-full w-full flex items-center justify-center">
 					<div class="flex flex-col gap-4 items-center">
@@ -527,7 +525,7 @@
 					</div>
 				</div>
 			{:else}
-				<div class="max-h-2/3 overflow-auto">
+				<div class="h-full overflow-auto">
 					<Table.Root class="[&_tr]:hover:bg-background">
 						<Table.Header>
 							<Table.Row>
@@ -573,38 +571,38 @@
 							{/each}
 						</Table.Body>
 					</Table.Root>
-				</div>
-				<Separator />
-				<div class="p-4">
-					<ChartLegend
-						series={heapSeries}
-						values={heapChartData?.at(-1)
-							? Object.fromEntries(
-									Object.entries(heapChartData.at(-1) ?? {}).map(([k, v]) => [
-										k,
-										formatSize(v),
-									]),
-								)
-							: undefined}
-					/>
-					<Chart.Container config={chartConfig}>
-						<LineChart
-							data={heapChartData}
-							x="t"
-							axis="x"
+					<Separator />
+					<div class="p-4">
+						<ChartLegend
 							series={heapSeries}
-							props={{
-								highlight: { points: false },
-								xAxis: {
-									format: (d) => String(d / 1_000_000),
-								},
-							}}
-							xDomain={[
-								heapChartData.at(0)?.t,
-								Number(heapChartData.at(0)?.t) + MAX_T_SPAN,
-							]}
-						></LineChart>
-					</Chart.Container>
+							values={heapChartData?.at(-1)
+								? Object.fromEntries(
+										Object.entries(heapChartData.at(-1) ?? {}).map(([k, v]) => [
+											k,
+											formatSize(v),
+										]),
+									)
+								: undefined}
+						/>
+						<Chart.Container config={chartConfig}>
+							<LineChart
+								data={heapChartData}
+								x="t"
+								axis="x"
+								series={heapSeries}
+								props={{
+									highlight: { points: false },
+									xAxis: {
+										format: (d) => String(d / 1_000_000),
+									},
+								}}
+								xDomain={[
+									heapChartData.at(0)?.t,
+									Number(heapChartData.at(0)?.t) + MAX_T_SPAN,
+								]}
+							></LineChart>
+						</Chart.Container>
+					</div>
 				</div>
 			{/if}
 		</Tabs.Content>
