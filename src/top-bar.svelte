@@ -10,16 +10,14 @@
 	import EyeIcon from "@lucide/svelte/icons/eye";
 	import EyeClosedIcon from "@lucide/svelte/icons/eye-closed";
 	import BatteryFull from "@lucide/svelte/icons/battery-full";
-	import { Button, Root } from "$lib/components/ui/button";
+	import { Button } from "$lib/components/ui/button";
 	import { API_ADDRESS } from "$src/config";
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
 	import { Spinner } from "$lib/components/ui/spinner/index.js";
 	import { onMount } from "svelte";
 	import * as Accordion from "$lib/components/ui/accordion/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
-	import { HomeIcon, HouseIcon, LockIcon, MoonIcon, SettingsIcon, SunIcon } from "lucide-svelte";
-	import { toggleMode } from "mode-watcher";
-	import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
+	import { HouseIcon, LockIcon, SettingsIcon } from "lucide-svelte";
 	import type { HTMLTdAttributes } from "svelte/elements";
 	import { cn } from "$lib/utils";
 

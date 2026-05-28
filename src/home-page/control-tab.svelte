@@ -70,7 +70,6 @@
 	const ws = getWebSocket();
 
 	const onResetParams = async () => {
-		let ok = true;
 		ws.send(
 			JSON.stringify({
 				leftTorque: 0,
@@ -210,6 +209,7 @@
 					<Tabs.Content value="manual">
 						<ManualControlTab
 							bind:controlParams={controlStates.controlParams.manual}
+							bind:running={controlStates.running}
 						/>
 					</Tabs.Content>
 					<Tabs.Content value="automatic">

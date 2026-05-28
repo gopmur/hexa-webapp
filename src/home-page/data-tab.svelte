@@ -178,7 +178,7 @@
 			taskRecord.absentCounter++;
 		}
 		newTaskTableData = newTaskTableData.filter(
-			(serviceStatus) => serviceStatus.absentCounter < 10,
+			(serviceStatus) => serviceStatus.absentCounter < -2,
 		);
 		for (const name in receivedTaskData) {
 			const serviceStatus = newTaskTableData.find(
@@ -667,7 +667,7 @@
 								format: (d) => String(d / 1_000_000),
 							},
 						}}
-						yDomain={[Math.PI / 2, Math.PI]}
+						yDomain={[-Math.PI/2, Math.PI]}
 						xDomain={[
 							motorChartData.at(0)?.t,
 							Number(motorChartData.at(0)?.t) + MAX_T_SPAN,

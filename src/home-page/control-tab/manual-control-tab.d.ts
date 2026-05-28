@@ -1,5 +1,6 @@
 import type { ManualControlParams } from "../control-tab";
 
 type ManualControlTabProps = {
-	controlParams: ManualControlParams
+	running: boolean;
+	controlParams: ManualControlParams;
 };

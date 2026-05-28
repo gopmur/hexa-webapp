@@ -1,5 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { writable, type Writable } from "svelte/store";
+
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
@@ -8,7 +10,9 @@ export function cn(...inputs: ClassValue[]) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type WithoutChild<T> = T extends { child?: any } ? Omit<T, "child"> : T;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type WithoutChildren<T> = T extends { children?: any } ? Omit<T, "children"> : T;
+export type WithoutChildren<T> = T extends { children?: any }
+	? Omit<T, "children">
+	: T;
 export type WithoutChildrenOrChild<T> = WithoutChildren<WithoutChild<T>>;
 export type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & {
 	ref?: U | null;
@@ -30,16 +34,31 @@ export const numberIsValid = (n: number | null | undefined): n is number => {
 	return n !== undefined && n !== null && !isNaN(n);
 };
 
-
 export const formatSize = (n: number) => {
-	if (n >= 2**30) {
-		return `${(n / 2**30).toFixed(1)}GB`
+	if (n >= 2 ** 30) {
+		return `${(n / 2 ** 30).toFixed(1)}GB`;
 	}
-	if (n >= 2**20) {
-		return `${(n / 2**20).toFixed(1)}MB`
+	if (n >= 2 ** 20) {
+		return `${(n / 2 ** 20).toFixed(1)}MB`;
 	}
-	if (n >= 2**10) {
-		return `${(n / 2**10).toFixed(1)}kB`
+	if (n >= 2 ** 10) {
+		return `${(n / 2 ** 10).toFixed(1)}kB`;
 	}
-	return `${n}B`
+	return `${n}B`;
+};
+
+
+
+export function persistentStore<T>(key: string, initialValue: T): Writable<T> {
+	const storedValue =
+		typeof window !== "undefined" ? localStorage.getItem(key) : null;
+	const data = storedValue ? JSON.parse(storedValue) : initialValue;
+	const store = writable(data);
+	store.subscribe((value) => {
+		if (typeof window !== "undefined") {
+			localStorage.setItem(key, JSON.stringify(value));
+		}
+	});
+
+	return store;
 }

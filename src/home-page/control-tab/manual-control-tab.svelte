@@ -3,8 +3,17 @@
 	import { getWebSocket } from "$src/context/ws";
 	import type { ManualControlTabProps } from "./manual-control-tab";
 	import * as Card from "$lib/components/ui/card/index.js";
-	let { controlParams = $bindable() }: ManualControlTabProps = $props();
+	import { API_ADDRESS } from "$src/config";
+	let {
+		controlParams = $bindable(),
+		running = $bindable(),
+	}: ManualControlTabProps = $props();
 	const ws = getWebSocket();
+
+	const stopMotors = async () => {
+		await fetch(`${API_ADDRESS}/api/stop`, { method: "PUT" });
+		running = false;
+	};
 
 	const onLeftSliderValueChange = async (value: number) => {
 		ws.send(
