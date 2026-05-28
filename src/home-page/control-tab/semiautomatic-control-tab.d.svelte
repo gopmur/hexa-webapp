@@ -125,8 +125,8 @@
 			</Card.Header>
 			<Card.Content class="flex flex-col gap-4">
 				<div>
-					start: {controlParams.startAssistAngle}
-					stop: {controlParams.stopAssistAngle}
+					start: {controlParams.startAssistAngle} deg
+					stop: {controlParams.stopAssistAngle} deg
 				</div>
 				<Slider
 					min={0}
@@ -167,13 +167,13 @@
 				<div class="flex flex-col gap-4">
 					<div class="flex flex-col gap-2">
 						<div>
-							Time: {controlParams.left.timeout}%
+							Time: {controlParams.left.timeout} ms
 						</div>
 						<Slider
 							type="single"
-							min={0}
-							max={1}
-							step={0.01}
+							min={10}
+							max={2000}
+							step={10}
 							value={controlParams.left.timeout}
 							onValueChange={onLeftTimeoutChanged}
 							onValueCommit={onParamCommit}
@@ -182,13 +182,13 @@
 					</div>
 					<div class="flex flex-col gap-2">
 						<div>
-							Torque: {controlParams.left.torque}%
+							Torque: {controlParams.left.torque} N.m
 						</div>
 						<Slider
 							type="single"
 							min={0}
-							max={1}
-							step={0.01}
+							max={16}
+							step={0.1}
 							value={controlParams.left.torque}
 							onValueChange={onLeftTorqueChanged}
 							onValueCommit={onParamCommit}
@@ -197,13 +197,13 @@
 					</div>
 					<div class="flex flex-col gap-2">
 						<div>
-							Delay: {controlParams.left.delay}%
+							Delay: {controlParams.left.delay} ms
 						</div>
 						<Slider
 							type="single"
-							min={0}
-							max={1}
-							step={0.01}
+							min={10}
+							max={2000}
+							step={10}
 							value={controlParams.left.delay}
 							onValueChange={onLeftDelayChanged}
 							onValueCommit={onParamCommit}
@@ -236,13 +236,13 @@
 				<div class="flex flex-col gap-4">
 					<div class="flex flex-col gap-2">
 						<div>
-							Time: {controlParams.right.timeout}%
+							Time: {controlParams.right.timeout} ms
 						</div>
 						<Slider
 							type="single"
-							min={0}
-							max={1}
-							step={0.01}
+							min={10}
+							max={2000}
+							step={10}
 							value={controlParams.right.timeout}
 							onValueChange={onRightTimeoutChanged}
 							onValueCommit={onParamCommit}
@@ -251,13 +251,13 @@
 					</div>
 					<div class="flex flex-col gap-2">
 						<div>
-							Torque: {controlParams.right.torque}%
+							Torque: {controlParams.right.torque} N.m
 						</div>
 						<Slider
 							type="single"
 							min={0}
-							max={1}
-							step={0.01}
+							max={16}
+							step={0.1}
 							value={controlParams.right.torque}
 							onValueChange={onRightTorqueChanged}
 							onValueCommit={onParamCommit}
@@ -266,13 +266,13 @@
 					</div>
 					<div class="flex flex-col gap-2">
 						<div>
-							Delay: {controlParams.right.delay}%
+							Delay: {controlParams.right.delay} ms
 						</div>
 						<Slider
 							type="single"
-							min={0}
-							max={1}
-							step={0.01}
+							min={10}
+							max={2000}
+							step={10}
 							value={controlParams.right.delay}
 							onValueChange={onRightDelayChanged}
 							onValueCommit={onParamCommit}

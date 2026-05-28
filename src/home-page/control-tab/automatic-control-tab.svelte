@@ -116,13 +116,13 @@
 			<div class="flex flex-col gap-4">
 				<div class="flex flex-col gap-2">
 					<div>
-						Time: {controlParams.left.timeout}%
+						Time: {controlParams.left.timeout} ms
 					</div>
 					<Slider
 						type="single"
-						min={0}
-						max={1}
-						step={0.01}
+						min={10}
+						max={2000}
+						step={10}
 						value={controlParams.left.timeout}
 						onValueChange={onLeftTimeoutChanged}
 						onValueCommit={onParamCommit}
@@ -131,13 +131,13 @@
 				</div>
 				<div class="flex flex-col gap-2">
 					<div>
-						Torque: {controlParams.left.torque}%
+						Torque: {controlParams.left.torque} N.m
 					</div>
 					<Slider
 						type="single"
 						min={0}
-						max={1}
-						step={0.01}
+						max={16}
+						step={0.1}
 						value={controlParams.left.torque}
 						onValueChange={onLeftTorqueChanged}
 						onValueCommit={onParamCommit}
@@ -147,13 +147,13 @@
 				{#if $settings.advanced}
 					<div class="flex flex-col gap-2">
 						<div>
-							Velocity: {controlParams.left.velocityThreshold}%
+							Vel TH: {controlParams.left.velocityThreshold} deg/s
 						</div>
 						<Slider
 							type="single"
-							min={0}
-							max={1}
-							step={0.01}
+							min={0.001}
+							max={0.05}
+							step={0.001}
 							value={controlParams.left.velocityThreshold}
 							onValueChange={onLeftVelocityThresholdChanged}
 							onValueCommit={onParamCommit}
@@ -181,13 +181,13 @@
 			<div class="flex flex-col gap-4">
 				<div class="flex flex-col gap-2">
 					<div>
-						Time: {controlParams.right.timeout}%
+						Time: {controlParams.right.timeout} ms
 					</div>
 					<Slider
 						type="single"
-						min={0}
-						max={1}
-						step={0.01}
+						min={10}
+						max={2000}
+						step={10}
 						value={controlParams.right.timeout}
 						onValueChange={onRightTimeoutChanged}
 						onValueCommit={onParamCommit}
@@ -196,13 +196,13 @@
 				</div>
 				<div class="flex flex-col gap-2">
 					<div>
-						Torque: {controlParams.right.torque}%
+						Torque: {controlParams.right.torque} N.m
 					</div>
 					<Slider
 						type="single"
 						min={0}
-						max={1}
-						step={0.01}
+						max={16}
+						step={0.1}
 						value={controlParams.right.torque}
 						onValueChange={onRightTorqueChanged}
 						onValueCommit={onParamCommit}
@@ -212,13 +212,13 @@
 				{#if $settings.advanced}
 					<div class="flex flex-col gap-2">
 						<div>
-							Velocity: {controlParams.right.velocityThreshold}%
+							Vel TH: {controlParams.right.velocityThreshold} deg/s
 						</div>
 						<Slider
 							type="single"
-							min={0}
-							max={1}
-							step={0.01}
+							min={0.001}
+							max={0.05}
+							step={0.001}
 							value={controlParams.right.velocityThreshold}
 							onValueChange={onRightVelocityThresholdChanged}
 							onValueCommit={onParamCommit}

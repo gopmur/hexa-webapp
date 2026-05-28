@@ -25,7 +25,7 @@
 			<Card.Title class="flex items-center gap-2">Left Leg</Card.Title>
 		</Card.Header>
 		<Card.Content class="flex flex-col gap-2">
-			<dir>Torque: {controlParams.left.torque}</dir>
+			<dir>Torque: {controlParams.left.torque} N.m</dir>
 			<Slider
 				type="single"
 				onValueCommit={onParamCommit}
@@ -40,7 +40,7 @@
 			<Card.Title class="flex items-center gap-2">Right Leg</Card.Title>
 		</Card.Header>
 		<Card.Content class="flex flex-col gap-2">
-			<dir>Torque: {controlParams.right.torque}</dir>
+			<dir>Torque: {controlParams.right.torque} N.m</dir>
 			<Slider
 				type="single"
 				onValueCommit={onParamCommit}
