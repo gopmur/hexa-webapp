@@ -6,6 +6,7 @@
 	import { API_ADDRESS } from "$src/config";
 	import { LinkIcon } from "lucide-svelte";
 	import type { AutomaticControlTabProps } from "./automatic-control-tab";
+	import { settings } from "$src/context/settings";
 
 	let { controlParams = $bindable() }: AutomaticControlTabProps = $props();
 
@@ -143,21 +144,23 @@
 						disabled={leftLinked}
 					></Slider>
 				</div>
-				<div class="flex flex-col gap-2">
-					<div>
-						Velocity: {controlParams.left.velocityThreshold}%
+				{#if $settings.advanced}
+					<div class="flex flex-col gap-2">
+						<div>
+							Velocity: {controlParams.left.velocityThreshold}%
+						</div>
+						<Slider
+							type="single"
+							min={0}
+							max={1}
+							step={0.01}
+							value={controlParams.left.velocityThreshold}
+							onValueChange={onLeftVelocityThresholdChanged}
+							onValueCommit={onParamCommit}
+							disabled={leftLinked}
+						></Slider>
 					</div>
-					<Slider
-						type="single"
-						min={0}
-						max={1}
-						step={0.01}
-						value={controlParams.left.velocityThreshold}
-						onValueChange={onLeftVelocityThresholdChanged}
-						onValueCommit={onParamCommit}
-						disabled={leftLinked}
-					></Slider>
-				</div>
+				{/if}
 			</div>
 		</Card.Content>
 	</Card.Root>
@@ -206,21 +209,23 @@
 						disabled={rightLinked}
 					></Slider>
 				</div>
-				<div class="flex flex-col gap-2">
-					<div>
-						Velocity: {controlParams.right.velocityThreshold}%
+				{#if $settings.advanced}
+					<div class="flex flex-col gap-2">
+						<div>
+							Velocity: {controlParams.right.velocityThreshold}%
+						</div>
+						<Slider
+							type="single"
+							min={0}
+							max={1}
+							step={0.01}
+							value={controlParams.right.velocityThreshold}
+							onValueChange={onRightVelocityThresholdChanged}
+							onValueCommit={onParamCommit}
+							disabled={rightLinked}
+						></Slider>
 					</div>
-					<Slider
-						type="single"
-						min={0}
-						max={1}
-						step={0.01}
-						value={controlParams.right.velocityThreshold}
-						onValueChange={onRightVelocityThresholdChanged}
-						onValueCommit={onParamCommit}
-						disabled={rightLinked}
-					></Slider>
-				</div>
+				{/if}
 			</div>
 		</Card.Content>
 	</Card.Root>

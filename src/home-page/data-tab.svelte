@@ -5,7 +5,7 @@
 	import { LineChart } from "layerchart";
 	import * as Chart from "$lib/components/ui/chart/index.js";
 	import { onMount } from "svelte";
-	import { formatSize, numberIsValid, sleep } from "$lib/utils";
+	import { formatSize, numberIsValid, rad_to_deg, sleep } from "$lib/utils";
 	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
 	import ChartLegend from "./data-tab/chart-legend.svelte";
 	import Separator from "$lib/components/ui/separator/separator.svelte";
@@ -397,6 +397,10 @@
 			const motorData = data.motor;
 			const heapData = data.espHeap;
 			const t = data.microseconds;
+			if (motorData) {
+				motorData.leftPosition = rad_to_deg(motorData.leftPosition);
+				motorData.rightPosition = rad_to_deg(motorData.rightPosition);
+			}
 			if (heapData)
 				heapChartData = appendDataPointToChartData(
 					heapData,
@@ -650,7 +654,7 @@
 						? Object.fromEntries(
 								Object.entries(motorChartData.at(-1) ?? {}).map(([k, v]) => [
 									k,
-									String(v),
+									v.toFixed(1),
 								]),
 							)
 						: undefined}
@@ -667,7 +671,7 @@
 								format: (d) => String(d / 1_000_000),
 							},
 						}}
-						yDomain={[-Math.PI/2, Math.PI]}
+						yDomain={[-90, 180]}
 						xDomain={[
 							motorChartData.at(0)?.t,
 							Number(motorChartData.at(0)?.t) + MAX_T_SPAN,

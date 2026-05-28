@@ -2,7 +2,6 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { writable, type Writable } from "svelte/store";
 
-
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
@@ -47,8 +46,6 @@ export const formatSize = (n: number) => {
 	return `${n}B`;
 };
 
-
-
 export function persistentStore<T>(key: string, initialValue: T): Writable<T> {
 	const storedValue =
 		typeof window !== "undefined" ? localStorage.getItem(key) : null;
@@ -62,3 +59,7 @@ export function persistentStore<T>(key: string, initialValue: T): Writable<T> {
 
 	return store;
 }
+
+export const rad_to_deg = (rad: number) => {
+	return (rad / Math.PI) * 180;
+};
