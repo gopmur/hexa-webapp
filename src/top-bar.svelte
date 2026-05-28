@@ -20,6 +20,7 @@
 	import { HouseIcon, LockIcon, SettingsIcon } from "lucide-svelte";
 	import type { HTMLTdAttributes } from "svelte/elements";
 	import { cn } from "$lib/utils";
+	import { settings } from "./context/settings";
 
 	type WifiScanRecordType = {
 		rssi: number;
@@ -300,12 +301,14 @@
 						<RotateCw />
 						Restart
 					</Button>
-					<Button variant="secondary" onclick={restartEsp}
-						><RotateCw />Restart ESP32</Button
-					>
-					<Button variant="secondary" onclick={restartStm}
-						><RotateCw />Restart STM32</Button
-					>
+					{#if $settings.advanced}
+						<Button variant="secondary" onclick={restartEsp}
+							><RotateCw />Restart ESP32</Button
+						>
+						<Button variant="secondary" onclick={restartStm}
+							><RotateCw />Restart STM32</Button
+						>
+					{/if}
 				</Dialog.Content>
 				<Dialog.Trigger>
 					<Button variant="outline" size="icon-lg">
@@ -315,9 +318,6 @@
 			</Dialog.Root>
 			<Button variant="outline" size="icon-lg">
 				<BatteryFull />
-			</Button>
-			<Button variant="outline" size="icon-lg">
-				<ThermometerIcon />
 			</Button>
 			<Button href="#/settings" variant="outline" size="icon-lg">
 				<SettingsIcon />

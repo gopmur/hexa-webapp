@@ -7,6 +7,7 @@
 	import { LinkIcon } from "lucide-svelte";
 	import Switch from "$lib/components/ui/switch/switch.svelte";
 	import { settings } from "$src/context/settings";
+	import { degToRad } from "$lib/utils";
 
 	let { controlParams = $bindable() }: SemiautomaticControlTabProps = $props();
 
@@ -100,8 +101,8 @@
 			method: "PUT",
 			body: JSON.stringify({
 				weakLeg: controlParams.weakLeg,
-				startAssistAngle: controlParams.startAssistAngle,
-				stopAssistAngle: controlParams.stopAssistAngle,
+				startAssistAngle: degToRad(controlParams.startAssistAngle),
+				stopAssistAngle: degToRad(controlParams.stopAssistAngle),
 				left: {
 					timeout: controlParams.left.timeout,
 					torque: controlParams.left.torque,
@@ -130,8 +131,8 @@
 				</div>
 				<Slider
 					min={0}
-					max={1}
-					step={0.01}
+					max={190}
+					step={1}
 					type="multiple"
 					onValueChange={onAssistAngleChange}
 					onValueCommit={onParamCommit}

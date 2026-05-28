@@ -2,7 +2,7 @@
 	import Button from "$lib/components/ui/button/button.svelte";
 	import { PauseIcon, PlayIcon } from "lucide-svelte";
 	import * as Tabs from "$lib/components/ui/tabs";
-	import { sleep } from "$lib/utils";
+	import { radToDeg, sleep } from "$lib/utils";
 	import { API_ADDRESS } from "$src/config";
 	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
 	import { onMount } from "svelte";
@@ -108,6 +108,10 @@
 			throw new Error();
 		}
 		const responseData: ControlStates = await response.json();
+		responseData.controlParams.automatic.left.velocityThreshold = radToDeg(responseData.controlParams.automatic.left.velocityThreshold);
+		responseData.controlParams.automatic.right.velocityThreshold = radToDeg(responseData.controlParams.automatic.right.velocityThreshold);
+		responseData.controlParams.semiautomatic.startAssistAngle = radToDeg(responseData.controlParams.semiautomatic.startAssistAngle)
+		responseData.controlParams.semiautomatic.stopAssistAngle = radToDeg(responseData.controlParams.semiautomatic.stopAssistAngle)
 		return responseData;
 	};
 

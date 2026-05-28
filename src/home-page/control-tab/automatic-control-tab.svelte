@@ -7,6 +7,7 @@
 	import { LinkIcon } from "lucide-svelte";
 	import type { AutomaticControlTabProps } from "./automatic-control-tab";
 	import { settings } from "$src/context/settings";
+	import { degToRad } from "$lib/utils";
 
 	let { controlParams = $bindable() }: AutomaticControlTabProps = $props();
 
@@ -86,12 +87,12 @@
 				left: {
 					timeout: controlParams.left.timeout,
 					torque: controlParams.left.torque,
-					velocityThreshold: controlParams.left.velocityThreshold,
+					velocityThreshold: degToRad(controlParams.left.velocityThreshold),
 				},
 				right: {
 					timeout: controlParams.right.timeout,
 					torque: controlParams.right.torque,
-					velocityThreshold: controlParams.right.velocityThreshold,
+					velocityThreshold: degToRad(controlParams.right.velocityThreshold),
 				},
 			}),
 		});
@@ -151,9 +152,9 @@
 						</div>
 						<Slider
 							type="single"
-							min={0.001}
-							max={0.05}
-							step={0.001}
+							min={10}
+							max={100}
+							step={1}
 							value={controlParams.left.velocityThreshold}
 							onValueChange={onLeftVelocityThresholdChanged}
 							onValueCommit={onParamCommit}
@@ -216,9 +217,9 @@
 						</div>
 						<Slider
 							type="single"
-							min={0.001}
-							max={0.05}
-							step={0.001}
+							min={10}
+							max={100}
+							step={1}
 							value={controlParams.right.velocityThreshold}
 							onValueChange={onRightVelocityThresholdChanged}
 							onValueCommit={onParamCommit}

@@ -5,7 +5,7 @@
 	import { LineChart } from "layerchart";
 	import * as Chart from "$lib/components/ui/chart/index.js";
 	import { onMount } from "svelte";
-	import { formatSize, numberIsValid, rad_to_deg, sleep } from "$lib/utils";
+	import { formatSize, numberIsValid, radToDeg, sleep } from "$lib/utils";
 	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
 	import ChartLegend from "./data-tab/chart-legend.svelte";
 	import Separator from "$lib/components/ui/separator/separator.svelte";
@@ -178,7 +178,7 @@
 			taskRecord.absentCounter++;
 		}
 		newTaskTableData = newTaskTableData.filter(
-			(serviceStatus) => serviceStatus.absentCounter < -2,
+			(serviceStatus) => serviceStatus.absentCounter < 10,
 		);
 		for (const name in receivedTaskData) {
 			const serviceStatus = newTaskTableData.find(
@@ -398,8 +398,8 @@
 			const heapData = data.espHeap;
 			const t = data.microseconds;
 			if (motorData) {
-				motorData.leftPosition = rad_to_deg(motorData.leftPosition);
-				motorData.rightPosition = rad_to_deg(motorData.rightPosition);
+				motorData.leftPosition = radToDeg(motorData.leftPosition);
+				motorData.rightPosition = radToDeg(motorData.rightPosition);
 			}
 			if (heapData)
 				heapChartData = appendDataPointToChartData(
@@ -618,7 +618,7 @@
 					? Object.fromEntries(
 							Object.entries(imuChartData.at(-1) ?? {}).map(([k, v]) => [
 								k,
-								v.toFixed(1),
+								`${v.toFixed(1)} deg`,
 							]),
 						)
 					: undefined}
@@ -654,7 +654,7 @@
 						? Object.fromEntries(
 								Object.entries(motorChartData.at(-1) ?? {}).map(([k, v]) => [
 									k,
-									v.toFixed(1),
+									`${v.toFixed(1)} deg`,
 								]),
 							)
 						: undefined}

@@ -60,6 +60,9 @@ export function persistentStore<T>(key: string, initialValue: T): Writable<T> {
 	return store;
 }
 
-export const rad_to_deg = (rad: number) => {
+export const radToDeg = (rad: number) => {
 	return (rad / Math.PI) * 180;
+};
+export const degToRad = (rad: number) => {
+	return (rad / 180) * Math.PI;
 };
