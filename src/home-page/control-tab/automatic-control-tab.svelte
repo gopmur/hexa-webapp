@@ -100,7 +100,8 @@
 <div class="w-full flex gap-4 p-4">
 	<Card.Root class="w-full">
 		<Card.Header>
-			<Card.Title class="flex items-center gap-2">
+			<Card.Title class="flex flex-col gap-2">
+				<div class="pl-1">Right Leg</div>
 				<Button
 					variant={leftLinked ? "default" : "outline"}
 					size="icon"
@@ -108,62 +109,62 @@
 				>
 					<LinkIcon />
 				</Button>
-				<div>Left Leg</div>
 			</Card.Title>
-			<Card.Content class="px-0 pt-4">
-				<div class="flex flex-col gap-4">
-					<div class="flex flex-col gap-2">
-						<div>
-							Time: {controlParams.left.timeout}%
-						</div>
-						<Slider
-							type="single"
-							min={0}
-							max={1}
-							step={0.01}
-							value={controlParams.left.timeout}
-							onValueChange={onLeftTimeoutChanged}
-							onValueCommit={onParamCommit}
-							disabled={leftLinked}
-						></Slider>
-					</div>
-					<div class="flex flex-col gap-2">
-						<div>
-							Torque: {controlParams.left.torque}%
-						</div>
-						<Slider
-							type="single"
-							min={0}
-							max={1}
-							step={0.01}
-							value={controlParams.left.torque}
-							onValueChange={onLeftTorqueChanged}
-							onValueCommit={onParamCommit}
-							disabled={leftLinked}
-						></Slider>
-					</div>
-					<div class="flex flex-col gap-2">
-						<div>
-							Velocity: {controlParams.left.velocityThreshold}%
-						</div>
-						<Slider
-							type="single"
-							min={0}
-							max={1}
-							step={0.01}
-							value={controlParams.left.velocityThreshold}
-							onValueChange={onLeftVelocityThresholdChanged}
-							onValueCommit={onParamCommit}
-							disabled={leftLinked}
-						></Slider>
-					</div>
-				</div>
-			</Card.Content>
 		</Card.Header>
+		<Card.Content>
+			<div class="flex flex-col gap-4">
+				<div class="flex flex-col gap-2">
+					<div>
+						Time: {controlParams.left.timeout}%
+					</div>
+					<Slider
+						type="single"
+						min={0}
+						max={1}
+						step={0.01}
+						value={controlParams.left.timeout}
+						onValueChange={onLeftTimeoutChanged}
+						onValueCommit={onParamCommit}
+						disabled={leftLinked}
+					></Slider>
+				</div>
+				<div class="flex flex-col gap-2">
+					<div>
+						Torque: {controlParams.left.torque}%
+					</div>
+					<Slider
+						type="single"
+						min={0}
+						max={1}
+						step={0.01}
+						value={controlParams.left.torque}
+						onValueChange={onLeftTorqueChanged}
+						onValueCommit={onParamCommit}
+						disabled={leftLinked}
+					></Slider>
+				</div>
+				<div class="flex flex-col gap-2">
+					<div>
+						Velocity: {controlParams.left.velocityThreshold}%
+					</div>
+					<Slider
+						type="single"
+						min={0}
+						max={1}
+						step={0.01}
+						value={controlParams.left.velocityThreshold}
+						onValueChange={onLeftVelocityThresholdChanged}
+						onValueCommit={onParamCommit}
+						disabled={leftLinked}
+					></Slider>
+				</div>
+			</div>
+		</Card.Content>
 	</Card.Root>
 	<Card.Root class="w-full">
 		<Card.Header>
-			<Card.Title class="flex items-center gap-2">
+			<Card.Title class="flex flex-col gap-2">
+				<div class="pl-1">Right Leg</div>
 				<Button
 					variant={rightLinked ? "default" : "outline"}
 					size="icon"
@@ -171,57 +172,56 @@
 				>
 					<LinkIcon />
 				</Button>
-				<div>Right Leg</div>
 			</Card.Title>
-			<Card.Content class="px-0 pt-4">
-				<div class="flex flex-col gap-4">
-					<div class="flex flex-col gap-2">
-						<div>
-							Time: {controlParams.right.timeout}%
-						</div>
-						<Slider
-							type="single"
-							min={0}
-							max={1}
-							step={0.01}
-							value={controlParams.right.timeout}
-							onValueChange={onRightTimeoutChanged}
-							onValueCommit={onParamCommit}
-							disabled={rightLinked}
-						></Slider>
-					</div>
-					<div class="flex flex-col gap-2">
-						<div>
-							Torque: {controlParams.right.torque}%
-						</div>
-						<Slider
-							type="single"
-							min={0}
-							max={1}
-							step={0.01}
-							value={controlParams.right.torque}
-							onValueChange={onRightTorqueChanged}
-							onValueCommit={onParamCommit}
-							disabled={rightLinked}
-						></Slider>
-					</div>
-					<div class="flex flex-col gap-2">
-						<div>
-							Velocity: {controlParams.right.velocityThreshold}%
-						</div>
-						<Slider
-							type="single"
-							min={0}
-							max={1}
-							step={0.01}
-							value={controlParams.right.velocityThreshold}
-							onValueChange={onRightVelocityThresholdChanged}
-							onValueCommit={onParamCommit}
-							disabled={rightLinked}
-						></Slider>
-					</div>
-				</div>
-			</Card.Content>
 		</Card.Header>
+		<Card.Content>
+			<div class="flex flex-col gap-4">
+				<div class="flex flex-col gap-2">
+					<div>
+						Time: {controlParams.right.timeout}%
+					</div>
+					<Slider
+						type="single"
+						min={0}
+						max={1}
+						step={0.01}
+						value={controlParams.right.timeout}
+						onValueChange={onRightTimeoutChanged}
+						onValueCommit={onParamCommit}
+						disabled={rightLinked}
+					></Slider>
+				</div>
+				<div class="flex flex-col gap-2">
+					<div>
+						Torque: {controlParams.right.torque}%
+					</div>
+					<Slider
+						type="single"
+						min={0}
+						max={1}
+						step={0.01}
+						value={controlParams.right.torque}
+						onValueChange={onRightTorqueChanged}
+						onValueCommit={onParamCommit}
+						disabled={rightLinked}
+					></Slider>
+				</div>
+				<div class="flex flex-col gap-2">
+					<div>
+						Velocity: {controlParams.right.velocityThreshold}%
+					</div>
+					<Slider
+						type="single"
+						min={0}
+						max={1}
+						step={0.01}
+						value={controlParams.right.velocityThreshold}
+						onValueChange={onRightVelocityThresholdChanged}
+						onValueCommit={onParamCommit}
+						disabled={rightLinked}
+					></Slider>
+				</div>
+			</div>
+		</Card.Content>
 	</Card.Root>
 </div>

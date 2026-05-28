@@ -6,6 +6,7 @@
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { LinkIcon } from "lucide-svelte";
 	import Switch from "$lib/components/ui/switch/switch.svelte";
+	import { settings } from "$src/context/settings";
 
 	let { controlParams = $bindable() }: SemiautomaticControlTabProps = $props();
 
@@ -117,42 +118,49 @@
 </script>
 
 <div class="w-full flex flex-col p-4 gap-4">
-	<Card.Root class="w-full">
-		<Card.Header>
-			<Card.Title class="flex items-center gap-2">Assist Angles</Card.Title>
-		</Card.Header>
-		<Card.Content class="flex flex-col gap-4">
-			<div>
-				start: {controlParams.startAssistAngle}
-				stop: {controlParams.stopAssistAngle}
-			</div>
-			<Slider
-				min={0}
-				max={1}
-				step={0.01}
-				type="multiple"
-				onValueChange={onAssistAngleChange}
-				onValueCommit={onParamCommit}
-				value={[controlParams.startAssistAngle, controlParams.stopAssistAngle]}
-			/>
-		</Card.Content>
-	</Card.Root>
+	{#if $settings.advanced}
+		<Card.Root class="w-full">
+			<Card.Header>
+				<Card.Title class="flex items-center gap-2">Assist Angles</Card.Title>
+			</Card.Header>
+			<Card.Content class="flex flex-col gap-4">
+				<div>
+					start: {controlParams.startAssistAngle}
+					stop: {controlParams.stopAssistAngle}
+				</div>
+				<Slider
+					min={0}
+					max={1}
+					step={0.01}
+					type="multiple"
+					onValueChange={onAssistAngleChange}
+					onValueCommit={onParamCommit}
+					value={[
+						controlParams.startAssistAngle,
+						controlParams.stopAssistAngle,
+					]}
+				/>
+			</Card.Content>
+		</Card.Root>
+	{/if}
 	<div class="w-full flex gap-4">
 		<Card.Root class="w-full">
 			<Card.Header>
-				<Card.Title class="flex items-center gap-2">
-					<Button
-						variant={leftLinked ? "default" : "outline"}
-						size="icon"
-						onclick={onLeftLinkClicked}
-					>
-						<LinkIcon />
-					</Button>
-					<Switch
-						checked={controlParams.weakLeg == "left"}
-						onCheckedChange={onLeftLegSwitchClicked}
-					/>
-					<div>Left Leg</div>
+				<Card.Title class="flex flex-col gap-2">
+					<div class="pl-1">Left Leg</div>
+					<div class="flex items-center gap-2">
+						<Button
+							variant={leftLinked ? "default" : "outline"}
+							size="icon"
+							onclick={onLeftLinkClicked}
+						>
+							<LinkIcon />
+						</Button>
+						<Switch
+							checked={controlParams.weakLeg == "left"}
+							onCheckedChange={onLeftLegSwitchClicked}
+						/>
+					</div>
 				</Card.Title>
 			</Card.Header>
 			<Card.Content>
@@ -207,20 +215,22 @@
 		</Card.Root>
 		<Card.Root class="w-full">
 			<Card.Header>
-				<Card.Title class="flex items-center gap-2">
-					<Button
-						variant={rightLinked ? "default" : "outline"}
-						size="icon"
-						onclick={onRightLinkClicked}
-					>
-						<LinkIcon />
-					</Button>
-					<Switch
-						checked={controlParams.weakLeg == "right"}
-						onCheckedChange={onRightLegSwitchClicked}
-					/>
-					<div>Right Leg</div>
-				</Card.Title>
+				<Card.Title class="flex flex-col gap-2">
+					<div class="pl-1">Right Leg</div>
+					<div class="flex items-center gap-2">
+						<Button
+							variant={rightLinked ? "default" : "outline"}
+							size="icon"
+							onclick={onRightLinkClicked}
+						>
+							<LinkIcon />
+						</Button>
+						<Switch
+							checked={controlParams.weakLeg == "right"}
+							onCheckedChange={onRightLegSwitchClicked}
+						/>
+					</div></Card.Title
+				>
 			</Card.Header>
 			<Card.Content>
 				<div class="flex flex-col gap-4">
