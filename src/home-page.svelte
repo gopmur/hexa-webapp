@@ -11,6 +11,7 @@
 	import { JoystickIcon } from "lucide-svelte";
 	import { onMount } from "svelte";
 	import { getWebSocket } from "./context/ws";
+	import PatientsTab from "./home-page/patients-tab.svelte";
 
 	let readDataStream = $state(false);
 	let settingsPage = true;
@@ -33,10 +34,12 @@
 	</Tabs.Content>
 	<Tabs.Content value="data" class="overflow-hidden">
 		{#if tab == "data"}
-			<DataTab {readDataStream}/>
+			<DataTab {readDataStream} />
 		{/if}
 	</Tabs.Content>
-	<Tabs.Content value="patients" class="overflow-hidden"></Tabs.Content>
+	<Tabs.Content value="patients" class="overflow-hidden">
+		<PatientsTab />
+	</Tabs.Content>
 	<Tabs.Content value="report" class="overflow-hidden">
 		<ReportTab />
 	</Tabs.Content>
