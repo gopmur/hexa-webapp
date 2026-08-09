@@ -101,6 +101,8 @@
 	let espTaskStackSizes: StackSizeResponse;
 	let espStackSizesLoading = true;
 	let stmStackSizesLoading = true;
+	let timeOffset = 0;
+	let setTimeOffset = true;
 
 	const MAX_T_SPAN = 5_000_000;
 
@@ -374,6 +376,7 @@
 	} satisfies Chart.ChartConfig;
 
 	const onDataTabChange = (dataTab: string) => {
+		setTimeOffset = true;
 		fetch(
 			`${API_ADDRESS}/api/streams/${dataTab == "imu" ? "start" : "stop"}/imu`,
 		);
@@ -396,7 +399,11 @@
 			const imuData = data.imu;
 			const motorData = data.motor;
 			const heapData = data.espHeap;
-			const t = data.microseconds;
+			if (setTimeOffset) {
+				timeOffset = data.microseconds;
+				setTimeOffset = false;
+			}
+			const t = data.microseconds - timeOffset;
 			if (motorData) {
 				motorData.leftPosition = radToDeg(motorData.leftPosition);
 				motorData.rightPosition = radToDeg(motorData.rightPosition);

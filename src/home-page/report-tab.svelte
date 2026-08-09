@@ -48,7 +48,7 @@
 <script lang="ts">
 	import { API_ADDRESS } from "$src/config";
 	import { onMount } from "svelte";
-	import * as Card from "$lib/components/ui/card/index.js";
+	import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
 	import {
 		ChevronLeftIcon,
 		ChevronRightIcon,
@@ -57,10 +57,7 @@
 	} from "lucide-svelte";
 	import { Button } from "$lib/components/ui/button";
 	import Separator from "$lib/components/ui/separator/separator.svelte";
-
-	type PwdResponseData = {
-		pwd: string;
-	};
+	import BreadcrumbItem from "$lib/components/ui/breadcrumb/breadcrumb-item.svelte";
 
 	type EntryType = "file" | "folder";
 
@@ -73,18 +70,29 @@
 		entries: Array<Entry>;
 	};
 
+	type BreadcrumbItem = {
+		folderName: string;
+		path: string;
+	};
+
 	let workingDirectory = $state("/");
 	let entries: Array<Entry> = $state([]);
-	let backHistory: Array<string> = $state([]);
+	let redoHistory: Array<string> = $state([]);
+	let undoHistory: Array<string> = $state([]);
 	let isTouchDevice = $state(false);
 	let columns = $state(1);
+	let breadcrumbItems: Array<BreadcrumbItem> = $state([
+		{
+			path: "/",
+			folderName: "/",
+		},
+	]);
 
 	const getFileManagerStates = async () => {
-		const pwdResponse = await fetch(`${API_ADDRESS}/api/file-manager/pwd`);
-		const pwdResponseData: PwdResponseData = await pwdResponse.json();
-		const lsResponse = await fetch(`${API_ADDRESS}/api/file-manager/ls`);
+		const lsResponse = await fetch(
+			`${API_ADDRESS}/api/file-manager/ls${workingDirectory.slice(0, -1)}`,
+		);
 		const lsResponseData: LsResponse = await lsResponse.json();
-		workingDirectory = pwdResponseData.pwd;
 		entries = lsResponseData.entries;
 		entries.sort((a, b) => (a.name == b.name ? 0 : a.name < b.name ? -1 : 1));
 		entries.sort((a, b) =>
@@ -105,53 +113,97 @@
 	});
 
 	const cd = async (path: string) => {
-		await fetch(`${API_ADDRESS}/api/file-manager/cd`, {
-			method: "PUT",
-			body: JSON.stringify({
-				path: `${path}`,
-			}),
-		});
+		let breadcrumbPath = "";
+		breadcrumbItems = [];
+		let breadcrumbFolderNames = ["/", ...path.split("/").slice(1, -1)];
+		for (const folderName of breadcrumbFolderNames) {
+			if (breadcrumbPath == "") {
+				breadcrumbPath += folderName;
+			} else {
+				breadcrumbPath += folderName + "/";
+			}
+			breadcrumbItems.push({
+				folderName: folderName,
+				path: breadcrumbPath,
+			});
+		}
+		console.log(breadcrumbItems);
+		workingDirectory = path;
 	};
 
 	const onFolderClicked = (folderName: string) => {
 		return async () => {
-			backHistory = [];
+			redoHistory = [];
+			undoHistory.push(workingDirectory);
 			cd(`${workingDirectory}${folderName}/`);
 			await getFileManagerStates();
 		};
 	};
 
 	const onBackClicked = async () => {
-		backHistory.push(workingDirectory);
-		const newWorkingDirectory =
-			workingDirectory.split("/").slice(0, -2).join("/") + "/";
+		redoHistory.push(workingDirectory);
+		const newWorkingDirectory = undoHistory.pop();
+		if (newWorkingDirectory == undefined) {
+			return;
+		}
 		await cd(newWorkingDirectory);
 		await getFileManagerStates();
 	};
 
 	const onForwardClicked = async () => {
-		const newWorkingDirectory = backHistory.pop();
+		undoHistory.push(workingDirectory);
+		const newWorkingDirectory = redoHistory.pop();
 		if (newWorkingDirectory == null || newWorkingDirectory == undefined) {
 			return;
 		}
 		await cd(newWorkingDirectory);
 		await getFileManagerStates();
 	};
+
+	const onBreadcrumbItemClicked = (path: string) => {
+		return async () => {
+			undoHistory.push(workingDirectory);
+			redoHistory = []
+			await cd(path);
+			await getFileManagerStates();
+		};
+	};
 </script>
 
 <div class="h-full overflow-hidden flex flex-col">
-	<div class="w-full flex gap-2 p-4">
-		<Button size="icon-lg" variant="outline" onclick={onBackClicked}>
-			<ChevronLeftIcon />
-		</Button>
-		<Button
-			size="icon-lg"
-			variant="outline"
-			disabled={backHistory.length == 0}
-			onclick={onForwardClicked}
-		>
-			<ChevronRightIcon />
-		</Button>
+	<div class="w-full flex justify-start items-center">
+		<div class="flex gap-2 p-4">
+			<Button
+				size="icon-lg"
+				variant="outline"
+				disabled={undoHistory.length == 0}
+				onclick={onBackClicked}
+			>
+				<ChevronLeftIcon />
+			</Button>
+			<Button
+				size="icon-lg"
+				variant="outline"
+				disabled={redoHistory.length == 0}
+				onclick={onForwardClicked}
+			>
+				<ChevronRightIcon />
+			</Button>
+		</div>
+		<Breadcrumb.Root>
+			<Breadcrumb.List>
+				{#each breadcrumbItems as breadcrumbItem (breadcrumbItem.path)}
+					<Breadcrumb.Item>
+						<Breadcrumb.Link
+							class="cursor-pointer"
+							onclick={onBreadcrumbItemClicked(breadcrumbItem.path)}
+							>{breadcrumbItem.folderName}</Breadcrumb.Link
+						>
+					</Breadcrumb.Item>
+					<Breadcrumb.Separator />
+				{/each}
+			</Breadcrumb.List>
+		</Breadcrumb.Root>
 	</div>
 	<div
 		class="sm:grid sm:gap-10 w-full max-h-full overflow-auto px-6 pb-4 flex-col"
