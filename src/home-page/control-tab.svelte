@@ -13,6 +13,7 @@
 	import SmartControlTab from "./control-tab/smart-control-tab.svelte";
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { getWebSocket } from "$src/context/ws";
+	import { toast } from "svelte-sonner";
 
 	let loading = $state(true);
 
@@ -96,9 +97,18 @@
 			}),
 		);
 		const responses = await Promise.all(requests);
-		const allOk = responses.every(r => r.ok);
+		const allOk = responses.every((r) => r.ok);
 		if (allOk) {
 			loadStates();
+		}
+	};
+
+	const onZeroPos = async () => {
+		try {
+			await fetch(`${API_ADDRESS}/api/motors/zero_pos`);
+			toast.success("Motors zero posed successfully")
+		} catch {
+			toast.error("Zero pos failed");
 		}
 	};
 
@@ -108,10 +118,18 @@
 			throw new Error();
 		}
 		const responseData: ControlStates = await response.json();
-		responseData.controlParams.automatic.left.velocityThreshold = radToDeg(responseData.controlParams.automatic.left.velocityThreshold);
-		responseData.controlParams.automatic.right.velocityThreshold = radToDeg(responseData.controlParams.automatic.right.velocityThreshold);
-		responseData.controlParams.semiautomatic.startAssistAngle = radToDeg(responseData.controlParams.semiautomatic.startAssistAngle)
-		responseData.controlParams.semiautomatic.stopAssistAngle = radToDeg(responseData.controlParams.semiautomatic.stopAssistAngle)
+		responseData.controlParams.automatic.left.velocityThreshold = radToDeg(
+			responseData.controlParams.automatic.left.velocityThreshold,
+		);
+		responseData.controlParams.automatic.right.velocityThreshold = radToDeg(
+			responseData.controlParams.automatic.right.velocityThreshold,
+		);
+		responseData.controlParams.semiautomatic.startAssistAngle = radToDeg(
+			responseData.controlParams.semiautomatic.startAssistAngle,
+		);
+		responseData.controlParams.semiautomatic.stopAssistAngle = radToDeg(
+			responseData.controlParams.semiautomatic.stopAssistAngle,
+		);
 		return responseData;
 	};
 
@@ -137,14 +155,11 @@
 
 	const loadStates = async () => {
 		loading = true;
-		while (true) {
-			try {
-				controlStates = await getStatesFromApi();
-				break;
-			} catch {
-				await sleep(1000);
-			}
-		}
+		// while (true) {
+		try {
+			controlStates = await getStatesFromApi();
+		} catch {}
+		// }
 
 		loading = false;
 	};
@@ -204,7 +219,9 @@
 								<Button variant="outline" class="flex-1" onclick={onResetParams}
 									>Reset Parameters</Button
 								>
-								<Button variant="outline" class="flex-1">Zero Pos</Button>
+								<Button variant="outline" class="flex-1" onclick={onZeroPos}
+									>Zero Pos</Button
+								>
 							</div>
 						</Card.Content>
 					</Card.Root>

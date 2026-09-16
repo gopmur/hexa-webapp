@@ -19,7 +19,6 @@
 	onMount(() => {
 		setWebSocket(ws);
 		fetch(`${API_ADDRESS}/api/streams/stop/imu`);
-		fetch(`${API_ADDRESS}/api/streams/stop/stm_cpu_usage`);
 		fetch(`${API_ADDRESS}/api/streams/stop/esp_cpu_usage`);
 		fetch(`${API_ADDRESS}/api/streams/stop/motor`);
 	});

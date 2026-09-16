@@ -87,18 +87,18 @@
 
 	type StackSizeResponse = Record<string, number>;
 
-	type DataTab = "stm-task-data" | "esp-task-data" | "imu" | "motor";
+	type DataTab =  "esp-task-data" | "imu" | "motor";
 
 	let stmTaskTableData: TaskTableData[] = [];
 	let espTaskTableData: TaskTableData[] = [];
 
-	let dataTab: DataTab = "stm-task-data";
+	let dataTab: DataTab = "esp-task-data";
 
 	let imuChartData: ImuChartData[] = [];
 	let motorChartData: MotorChartData[] = [];
 	let heapChartData: HeapChartDataType[] = [];
-	let stmTaskStackSizes: StackSizeResponse;
-	let espTaskStackSizes: StackSizeResponse;
+	let stmTaskStackSizes: StackSizeResponse = {};
+	let espTaskStackSizes: StackSizeResponse = {};
 	let espStackSizesLoading = true;
 	let stmStackSizesLoading = true;
 	let timeOffset = 0;
@@ -130,37 +130,6 @@
 		}
 		return chartData;
 	};
-
-	const getStmStackSizes = async () => {
-		stmStackSizesLoading = true;
-		while (true) {
-			try {
-				let stm_response = await fetch(`${API_ADDRESS}/api/stm_stack_size`);
-				stmTaskStackSizes = await stm_response.json();
-				break;
-			} catch {
-				await sleep(1000);
-			}
-		}
-		stmStackSizesLoading = false;
-	};
-
-	const getEspStackSizes = async () => {
-		espStackSizesLoading = true;
-		while (true) {
-			try {
-				let esp_response = await fetch(`${API_ADDRESS}/api/esp_stack_size`);
-				espTaskStackSizes = await esp_response.json();
-				break;
-			} catch {
-				await sleep(1000);
-			}
-		}
-		espStackSizesLoading = false;
-	};
-
-	getStmStackSizes();
-	getEspStackSizes();
 
 	const updateTaskTable = (
 		taskTableData: TaskTableData[],
@@ -290,9 +259,6 @@
 		if (dataTab == "esp-task-data") {
 			fetch(`${API_ADDRESS}/api/streams/start/esp_cpu_usage`);
 		}
-		if (dataTab == "stm-task-data") {
-			fetch(`${API_ADDRESS}/api/streams/start/stm_cpu_usage`);
-		}
 		if (dataTab == "imu") {
 			fetch(`${API_ADDRESS}/api/streams/start/imu`);
 		}
@@ -301,7 +267,6 @@
 		}
 	} else {
 		fetch(`${API_ADDRESS}/api/streams/stop/imu`);
-		fetch(`${API_ADDRESS}/api/streams/stop/stm_cpu_usage`);
 		fetch(`${API_ADDRESS}/api/streams/stop/esp_cpu_usage`);
 		fetch(`${API_ADDRESS}/api/streams/stop/motor`);
 	}
@@ -381,9 +346,6 @@
 			`${API_ADDRESS}/api/streams/${dataTab == "imu" ? "start" : "stop"}/imu`,
 		);
 		fetch(
-			`${API_ADDRESS}/api/streams/${dataTab == "stm-task-data" ? "start" : "stop"}/stm_cpu_usage`,
-		);
-		fetch(
 			`${API_ADDRESS}/api/streams/${dataTab == "esp-task-data" ? "start" : "stop"}/esp_cpu_usage`,
 		);
 		fetch(
@@ -396,6 +358,10 @@
 			const data: WsData = JSON.parse(event.data);
 			const stmTaskData = data.stmCpuUsage;
 			const espTaskData = data.espCpuUsage;
+			if (espTaskData) {
+				delete espTaskData["IDLE0"];
+				delete espTaskData["IDLE1"];
+			}
 			const imuData = data.imu;
 			const motorData = data.motor;
 			const heapData = data.espHeap;
@@ -448,7 +414,6 @@
 		};
 		return async () => {
 			fetch(`${API_ADDRESS}/api/streams/stop/imu`);
-			fetch(`${API_ADDRESS}/api/streams/stop/stm_cpu_usage`);
 			fetch(`${API_ADDRESS}/api/streams/stop/esp_cpu_usage`);
 			fetch(`${API_ADDRESS}/api/streams/stop/motor`);
 		};
@@ -461,25 +426,18 @@
 	onValueChange={onDataTabChange}
 >
 	<Tabs.List class="w-full rounded-none min-h-20">
-		<Tabs.Trigger class="flex flex-col" value="stm-task-data"
-			>STM32 Tasks</Tabs.Trigger
-		>
 		<Tabs.Trigger class="flex flex-col" value="esp-task-data"
-			>ESP32 Tasks</Tabs.Trigger
+			>Tasks</Tabs.Trigger
 		>
 		<Tabs.Trigger class="flex flex-col" value="imu">IMU</Tabs.Trigger>
 		<Tabs.Trigger class="flex flex-col" value="motor">Motor</Tabs.Trigger>
 	</Tabs.List>
 
 	<div class="overflow-y-auto h-full">
-		<Tabs.Content value="stm-task-data" class="h-full">
-			{#if stmStackSizesLoading}
-				<div class="h-full w-full flex items-center justify-center">
-					<Spinner class="size-40" />
-				</div>
-			{:else}
-				<Table.Root class="[&_tr]:hover:bg-background [&_thead]:sticky">
-					<Table.Header class="">
+		<Tabs.Content value="esp-task-data" class="overflow-hidden h-full">
+			<div class="h-full overflow-auto">
+				<Table.Root class="[&_tr]:hover:bg-background">
+					<Table.Header>
 						<Table.Row>
 							<Table.Head>Service</Table.Head>
 							<Table.Head>CPU Usage</Table.Head>
@@ -490,7 +448,7 @@
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
-						{#each stmTaskTableData as serviceStatus (serviceStatus)}
+						{#each espTaskTableData as serviceStatus (serviceStatus)}
 							<Table.Row>
 								<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell
 								>
@@ -522,96 +480,39 @@
 						{/each}
 					</Table.Body>
 				</Table.Root>
-			{/if}
-		</Tabs.Content>
-		<Tabs.Content value="esp-task-data" class="overflow-hidden h-full">
-			{#if espStackSizesLoading}
-				<div class="h-full w-full flex items-center justify-center">
-					<div class="flex flex-col gap-4 items-center">
-						<Spinner class="size-40" />
-					</div>
-				</div>
-			{:else}
-				<div class="h-full overflow-auto">
-					<Table.Root class="[&_tr]:hover:bg-background">
-						<Table.Header>
-							<Table.Row>
-								<Table.Head>Service</Table.Head>
-								<Table.Head>CPU Usage</Table.Head>
-								<Table.Head>Stack (%)</Table.Head>
-								<Table.Head class="max-sm:hidden">Stack Used</Table.Head>
-								<Table.Head>Stack Free</Table.Head>
-								<Table.Head class="max-sm:hidden">Stack Size</Table.Head>
-							</Table.Row>
-						</Table.Header>
-						<Table.Body>
-							{#each espTaskTableData as serviceStatus (serviceStatus)}
-								<Table.Row>
-									<Table.Cell class="font-medium"
-										>{serviceStatus.name}</Table.Cell
-									>
-									<Table.Cell
-										style={`background-color: oklch(0.795 0.184 86.047/ ${percentToLightness(serviceStatus.cpuUsage)});`}
-										>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
-									>
-									<Table.Cell
-										style={`background-color: oklch(0.795 0.184 86.047/ ${serviceStatus.maxStackUsagePercent ? percentToLightness(serviceStatus.maxStackUsagePercent) : 0});`}
-									>
-										{numberIsValid(serviceStatus.maxStackUsagePercent)
-											? `${serviceStatus.maxStackUsagePercent.toFixed(2)}%`
-											: "NA"}
-									</Table.Cell>
-									<Table.Cell class="max-sm:hidden">
-										{numberIsValid(serviceStatus.maxStackUsage)
-											? formatMemorySize(serviceStatus.maxStackUsage)
-											: "NA"}
-									</Table.Cell>
-									<Table.Cell>
-										{formatMemorySize(serviceStatus.minFreeStack)}
-									</Table.Cell>
-									<Table.Cell class="max-sm:hidden">
-										{numberIsValid(serviceStatus.stackSize)
-											? formatMemorySize(serviceStatus.stackSize)
-											: "NA"}
-									</Table.Cell>
-								</Table.Row>
-							{/each}
-						</Table.Body>
-					</Table.Root>
-					<Separator />
-					<div class="p-4">
-						<ChartLegend
+				<Separator />
+				<div class="p-4">
+					<ChartLegend
+						series={heapSeries}
+						values={heapChartData?.at(-1)
+							? Object.fromEntries(
+									Object.entries(heapChartData.at(-1) ?? {}).map(([k, v]) => [
+										k,
+										formatSize(v),
+									]),
+								)
+							: undefined}
+					/>
+					<Chart.Container config={chartConfig}>
+						<LineChart
+							data={heapChartData}
+							x="t"
+							axis="x"
 							series={heapSeries}
-							values={heapChartData?.at(-1)
-								? Object.fromEntries(
-										Object.entries(heapChartData.at(-1) ?? {}).map(([k, v]) => [
-											k,
-											formatSize(v),
-										]),
-									)
-								: undefined}
-						/>
-						<Chart.Container config={chartConfig}>
-							<LineChart
-								data={heapChartData}
-								x="t"
-								axis="x"
-								series={heapSeries}
-								props={{
-									highlight: { points: false },
-									xAxis: {
-										format: (d) => String(d / 1_000_000),
-									},
-								}}
-								xDomain={[
-									heapChartData.at(0)?.t,
-									Number(heapChartData.at(0)?.t) + MAX_T_SPAN,
-								]}
-							></LineChart>
-						</Chart.Container>
-					</div>
+							props={{
+								highlight: { points: false },
+								xAxis: {
+									format: (d) => String(d / 1_000_000),
+								},
+							}}
+							xDomain={[
+								heapChartData.at(0)?.t,
+								Number(heapChartData.at(0)?.t) + MAX_T_SPAN,
+							]}
+						></LineChart>
+					</Chart.Container>
 				</div>
-			{/if}
+			</div>
 		</Tabs.Content>
 		<Tabs.Content
 			value="imu"
