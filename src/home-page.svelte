@@ -13,12 +13,10 @@
 	import { getWebSocket } from "./context/ws";
 	import PatientsTab from "./home-page/patients-tab.svelte";
 
-	let readDataStream = $state(false);
-	let settingsPage = true;
-	let tab = $state("settings");
+	let tab = $state<"settings" | "data" | "patients" | "report">("settings");
 
 	const onTabChange = (newTab: string) => {
-		readDataStream = newTab == "data";
+		void newTab;
 	};
 </script>
 
@@ -28,14 +26,10 @@
 	onValueChange={onTabChange}
 >
 	<Tabs.Content value="settings" class="overflow-hidden">
-		{#if tab == "settings"}
-			<ControlTab />
-		{/if}
+		<ControlTab />
 	</Tabs.Content>
 	<Tabs.Content value="data" class="overflow-hidden">
-		{#if tab == "data"}
-			<DataTab {readDataStream} />
-		{/if}
+		<DataTab />
 	</Tabs.Content>
 	<Tabs.Content value="patients" class="overflow-hidden">
 		<PatientsTab />

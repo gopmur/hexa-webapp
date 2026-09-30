@@ -11,6 +11,8 @@
 	import Separator from "$lib/components/ui/separator/separator.svelte";
 
 	let streamSocket: WebSocket | null = null;
+	let logSocket: WebSocket | null = null;
+	let logMessages: string[] = $state([]);
 
 	type ReceivedEspTaskDataType = {
 		cpuUsage: number;
@@ -95,18 +97,18 @@
 
 	type StackSizeResponse = Record<string, number>;
 
-	type DataTab =  "esp-task-data" | "imu" | "motor";
+	type DataTab =  "esp-task-data" | "imu" | "motor" | "logs";
 
-	let stmTaskTableData: TaskTableData[] = [];
-	let espTaskTableData: TaskTableData[] = [];
+	let stmTaskTableData: TaskTableData[] = $state([]);
+	let espTaskTableData: TaskTableData[] = $state([]);
 
-	let dataTab: DataTab = "esp-task-data";
+	let dataTab: DataTab = $state("esp-task-data");
 
-	let imuChartData: ImuChartData[] = [];
-	let motorChartData: MotorChartData[] = [];
-	let heapChartData: HeapChartDataType[] = [];
-	let stmTaskStackSizes: StackSizeResponse = {};
-	let espTaskStackSizes: StackSizeResponse = {};
+	let imuChartData: ImuChartData[] = $state([]);
+	let motorChartData: MotorChartData[] = $state([]);
+	let heapChartData: HeapChartDataType[] = $state([]);
+	let stmTaskStackSizes: StackSizeResponse = $state({});
+	let espTaskStackSizes: StackSizeResponse = $state({});
 	let espStackSizesLoading = true;
 	let stmStackSizesLoading = true;
 	let timeOffset = 0;
@@ -144,7 +146,7 @@
 		receivedTaskData: Record<string, ReceivedEspTaskDataType>,
 		stackSizes: Record<string, number>,
 	) => {
-		let newTaskTableData = structuredClone(taskTableData);
+		let newTaskTableData = taskTableData.map((row) => ({ ...row }));
 		receivedTaskData = Object.fromEntries(
 			Object.entries(receivedTaskData).filter(
 				([name, taskData]) =>
@@ -241,6 +243,14 @@
 		return newTaskTableData;
 	};
 
+	const formatChartValue = (value: unknown, suffix = "") => {
+		const numericValue = Number(value);
+		if (!Number.isFinite(numericValue)) {
+			return "N/A";
+		}
+		return `${numericValue.toFixed(1)}${suffix}`;
+	};
+
 	const percentToLightness = (percent: number) => {
 		percent = Math.min(percent, 100);
 		const x = percent / 100;
@@ -265,6 +275,25 @@
 			streamSocket.close();
 			streamSocket = null;
 		}
+	};
+
+	const closeLogSocket = () => {
+		if (logSocket) {
+			logSocket.close();
+			logSocket = null;
+		}
+	};
+
+	const connectLogStream = () => {
+		closeLogSocket();
+		logSocket = new WebSocket(`${WS_API_ADDRESS}/api/log/system`);
+		logSocket.onmessage = (event) => {
+			const text = String(event.data ?? "").trim();
+			if (!text) {
+				return;
+			}
+			logMessages = [...logMessages.slice(-199), text];
+		};
 	};
 
 	const connectDataStream = () => {
@@ -435,8 +464,10 @@
 
 	onMount(() => {
 		connectDataStream();
+		connectLogStream();
 		return () => {
 			closeStreamSocket();
+			closeLogSocket();
 		};
 	});
 </script>
@@ -452,6 +483,7 @@
 		>
 		<Tabs.Trigger class="flex flex-col" value="imu">IMU</Tabs.Trigger>
 		<Tabs.Trigger class="flex flex-col" value="motor">Motor</Tabs.Trigger>
+		<Tabs.Trigger class="flex flex-col" value="logs">Logs</Tabs.Trigger>
 	</Tabs.List>
 
 	<div class="overflow-y-auto h-full">
@@ -507,10 +539,9 @@
 						series={heapSeries}
 						values={heapChartData?.at(-1)
 							? Object.fromEntries(
-									Object.entries(heapChartData.at(-1) ?? {}).map(([k, v]) => [
-										k,
-										formatSize(v),
-									]),
+									Object.entries(heapChartData.at(-1) ?? {})
+										.filter(([k]) => k !== "t")
+										.map(([k, v]) => [k, formatSize(Number(v))]),
 								)
 							: undefined}
 					/>
@@ -543,10 +574,9 @@
 				series={imuSeries}
 				values={imuChartData?.at(-1)
 					? Object.fromEntries(
-							Object.entries(imuChartData.at(-1) ?? {}).map(([k, v]) => [
-								k,
-								`${v.toFixed(1)} deg`,
-							]),
+							Object.entries(imuChartData.at(-1) ?? {})
+								.filter(([k]) => k !== "t")
+								.map(([k, v]) => [k, formatChartValue(v, " deg")]),
 						)
 					: undefined}
 			/>
@@ -579,10 +609,9 @@
 					series={motorSeries}
 					values={motorChartData?.at(-1)
 						? Object.fromEntries(
-								Object.entries(motorChartData.at(-1) ?? {}).map(([k, v]) => [
-									k,
-									`${v.toFixed(1)} deg`,
-								]),
+								Object.entries(motorChartData.at(-1) ?? {})
+									.filter(([k]) => k !== "t")
+									.map(([k, v]) => [k, formatChartValue(v, " deg")]),
 							)
 						: undefined}
 				/>
@@ -605,6 +634,17 @@
 						]}
 					></LineChart>
 				</Chart.Container>
+			</div>
+		</Tabs.Content>
+		<Tabs.Content value="logs" class="overflow-hidden h-full p-4">
+			<div class="h-full rounded-md border bg-background p-3 overflow-auto font-mono text-xs">
+				{#if logMessages.length === 0}
+					<div class="text-muted-foreground">Waiting for logs...</div>
+				{:else}
+					{#each logMessages as logLine}
+						<div class="whitespace-pre-wrap break-words">{logLine}</div>
+					{/each}
+				{/if}
 			</div>
 		</Tabs.Content>
 	</div>
