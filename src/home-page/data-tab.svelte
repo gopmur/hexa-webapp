@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Table from "$lib/components/ui/table/index.js";
 	import * as Tabs from "$lib/components/ui/tabs";
-	import { API_ADDRESS } from "$src/config";
+	import { API_ADDRESS, WS_API_ADDRESS } from "$src/config";
 	import { LineChart } from "layerchart";
 	import * as Chart from "$lib/components/ui/chart/index.js";
 	import { onMount } from "svelte";
@@ -9,10 +9,8 @@
 	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
 	import ChartLegend from "./data-tab/chart-legend.svelte";
 	import Separator from "$lib/components/ui/separator/separator.svelte";
-	import { getWebSocket } from "$src/context/ws";
 
-	export let readDataStream: boolean = false;
-	const ws = getWebSocket();
+	let streamSocket: WebSocket | null = null;
 
 	type ReceivedEspTaskDataType = {
 		cpuUsage: number;
@@ -41,12 +39,22 @@
 		};
 		stmCpuUsage?: Record<string, ReceivedStmTaskDataType>;
 		espCpuUsage?: Record<string, ReceivedEspTaskDataType>;
+		tasks?: Record<string, { cpu: number; minFreeStack: number; stackSize?: number }>;
 		motor?: {
 			leftPosition: number;
 			rightPosition: number;
+			leftVelocity?: number;
+			rightVelocity?: number;
 		};
 		espHeap?: ReceivedHeapDataType;
 		microseconds: number;
+		x?: number;
+		y?: number;
+		z?: number;
+		position0?: number;
+		position1?: number;
+		velocity0?: number;
+		velocity1?: number;
 	};
 
 	type TaskTableData = {
@@ -252,24 +260,103 @@
 		}
 	};
 
-	$: if (readDataStream) {
-		imuChartData = [];
-		motorChartData = [];
-		heapChartData = [];
-		if (dataTab == "esp-task-data") {
-			fetch(`${API_ADDRESS}/api/streams/start/esp_cpu_usage`);
+	const closeStreamSocket = () => {
+		if (streamSocket) {
+			streamSocket.close();
+			streamSocket = null;
 		}
-		if (dataTab == "imu") {
-			fetch(`${API_ADDRESS}/api/streams/start/imu`);
-		}
-		if (dataTab == "motor") {
-			fetch(`${API_ADDRESS}/api/streams/start/motor`);
-		}
-	} else {
-		fetch(`${API_ADDRESS}/api/streams/stop/imu`);
-		fetch(`${API_ADDRESS}/api/streams/stop/esp_cpu_usage`);
-		fetch(`${API_ADDRESS}/api/streams/stop/motor`);
-	}
+	};
+
+	const connectDataStream = () => {
+		closeStreamSocket();
+		const streamName = dataTab === "esp-task-data" ? "tasks" : dataTab;
+		streamSocket = new WebSocket(`${WS_API_ADDRESS}/api/stream/${streamName}`);
+		streamSocket.onmessage = (event) => {
+			const data: WsData = JSON.parse(event.data);
+			const normalizedTasks = Object.fromEntries(
+				Object.entries(data.tasks ?? {}).map(([name, task]) => [
+					name,
+					{
+						cpuUsage: task.cpu,
+						minFreeStack: task.minFreeStack,
+						stackSize: task.stackSize,
+					},
+				]),
+			) as Record<string, ReceivedEspTaskDataType>;
+			const stmTaskData = data.stmCpuUsage;
+			const espTaskData = normalizedTasks;
+			if (espTaskData) {
+				delete espTaskData["IDLE0"];
+				delete espTaskData["IDLE1"];
+			}
+			const imuData =
+				data.imu ??
+				((data.x !== undefined || data.y !== undefined || data.z !== undefined)
+					? {
+							x: data.x ?? 0,
+							y: data.y ?? 0,
+							z: data.z ?? 0,
+						}
+					: undefined);
+			const motorData =
+				data.motor ??
+				((data.position0 !== undefined || data.position1 !== undefined)
+					? {
+							leftPosition: data.position0 ?? 0,
+							rightPosition: data.position1 ?? 0,
+							leftVelocity: data.velocity0 ?? 0,
+							rightVelocity: data.velocity1 ?? 0,
+						}
+					: undefined);
+			const heapData = data.espHeap;
+			if (setTimeOffset) {
+				timeOffset = data.microseconds;
+				setTimeOffset = false;
+			}
+			const t = data.microseconds - timeOffset;
+			if (motorData) {
+				motorData.leftPosition = radToDeg(motorData.leftPosition);
+				motorData.rightPosition = radToDeg(motorData.rightPosition);
+			}
+			if (heapData)
+				heapChartData = appendDataPointToChartData(
+					heapData,
+					t,
+					heapChartData,
+				) as HeapChartDataType[];
+			if (imuData)
+				imuChartData = appendDataPointToChartData(
+					imuData,
+					t,
+					imuChartData,
+				) as ImuChartData[];
+			if (motorData)
+				motorChartData = appendDataPointToChartData(
+					motorData,
+					t,
+					motorChartData,
+				) as MotorChartData[];
+			if (stmTaskData) {
+				stmTaskTableData = updateTaskTable(
+					stmTaskTableData,
+					stmTaskData,
+					stmTaskStackSizes,
+				);
+			}
+			if (espTaskData) {
+				for (const task_name in espTaskData) {
+					if (espTaskData[task_name].stackSize) {
+						espTaskStackSizes[task_name] = espTaskData[task_name].stackSize;
+					}
+				}
+				espTaskTableData = updateTaskTable(
+					espTaskTableData,
+					espTaskData,
+					espTaskStackSizes,
+				);
+			}
+		};
+	};
 
 	const imuChartColors = {
 		x: "var(--warning)",
@@ -340,82 +427,16 @@
 		desktop: { label: "Desktop", color: "var(--chart-1)" },
 	} satisfies Chart.ChartConfig;
 
-	const onDataTabChange = (dataTab: string) => {
+	const onDataTabChange = (nextDataTab: string) => {
+		dataTab = nextDataTab as DataTab;
 		setTimeOffset = true;
-		fetch(
-			`${API_ADDRESS}/api/streams/${dataTab == "imu" ? "start" : "stop"}/imu`,
-		);
-		fetch(
-			`${API_ADDRESS}/api/streams/${dataTab == "esp-task-data" ? "start" : "stop"}/esp_cpu_usage`,
-		);
-		fetch(
-			`${API_ADDRESS}/api/streams/${dataTab == "motor" ? "start" : "stop"}/motor`,
-		);
+		connectDataStream();
 	};
 
 	onMount(() => {
-		ws.onmessage = (event) => {
-			const data: WsData = JSON.parse(event.data);
-			const stmTaskData = data.stmCpuUsage;
-			const espTaskData = data.espCpuUsage;
-			if (espTaskData) {
-				delete espTaskData["IDLE0"];
-				delete espTaskData["IDLE1"];
-			}
-			const imuData = data.imu;
-			const motorData = data.motor;
-			const heapData = data.espHeap;
-			if (setTimeOffset) {
-				timeOffset = data.microseconds;
-				setTimeOffset = false;
-			}
-			const t = data.microseconds - timeOffset;
-			if (motorData) {
-				motorData.leftPosition = radToDeg(motorData.leftPosition);
-				motorData.rightPosition = radToDeg(motorData.rightPosition);
-			}
-			if (heapData)
-				heapChartData = appendDataPointToChartData(
-					heapData,
-					t,
-					heapChartData,
-				) as HeapChartDataType[];
-			if (imuData)
-				imuChartData = appendDataPointToChartData(
-					imuData,
-					t,
-					imuChartData,
-				) as ImuChartData[];
-			if (motorData)
-				motorChartData = appendDataPointToChartData(
-					motorData,
-					t,
-					motorChartData,
-				) as MotorChartData[];
-			if (stmTaskData) {
-				stmTaskTableData = updateTaskTable(
-					stmTaskTableData,
-					stmTaskData,
-					stmTaskStackSizes,
-				);
-			}
-			if (espTaskData) {
-				for (const task_name in espTaskData) {
-					if (espTaskData[task_name].stackSize) {
-						espTaskStackSizes[task_name] = espTaskData[task_name].stackSize;
-					}
-				}
-				espTaskTableData = updateTaskTable(
-					espTaskTableData,
-					espTaskData,
-					espTaskStackSizes,
-				);
-			}
-		};
-		return async () => {
-			fetch(`${API_ADDRESS}/api/streams/stop/imu`);
-			fetch(`${API_ADDRESS}/api/streams/stop/esp_cpu_usage`);
-			fetch(`${API_ADDRESS}/api/streams/stop/motor`);
+		connectDataStream();
+		return () => {
+			closeStreamSocket();
 		};
 	});
 </script>

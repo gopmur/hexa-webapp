@@ -1,0 +1,323 @@
+#include "http/module.hpp"
+#include <format>
+#include <string>
+#include <variant>
+#include "esp_err.h"
+#include "esp_http_server.h"
+#include "http_parser.h"
+#include "jayson.hpp"
+#include "jaythread/thread_with_args.hpp"
+#include "system_logger.hpp"
+
+HttpModule::HttpModule(const char* name) : name(name) {};
+
+HttpModule::HttpModule(const char* name, std::vector<HttpModule*> modules)
+    : name(name), modules(modules) {};
+
+void HttpModule::set_global_header(httpd_req_t* req) {
+#ifdef CONFIG_HEXA_HTTP_ALLOW_CORS
+  allow_cors(req);
+#endif
+#ifdef CONFIG_HEXA_HTTP_KEEP_ALIVE
+  set_keep_alive(req);
+#endif
+}
+
+esp_err_t HttpModule::middleware(httpd_req_t* req) {
+  set_global_header(req);
+  if (!check_content_len(req)) {
+    JsonObject resp;
+    auto message =
+        std::format("content length is longer than {}", CONFIG_HEXA_HTTP_MAX_REQUEST_LEN);
+    resp.set("message", message.c_str());
+    return send_json(req, resp, HTTPD_413_CONTENT_TOO_LARGE);
+  }
+  auto handler = reinterpret_cast<esp_err_t (*)(httpd_req_t*)>(req->user_ctx);
+  if (handler == nullptr) {
+    LOGE("empty handler while trying to call from middleware");
+    return ESP_OK;
+  }
+  return handler(req);
+}
+
+esp_err_t HttpModule::json_middleware(httpd_req_t* req) {
+  set_global_header(req);
+  if (!check_content_len(req)) {
+    JsonObject resp;
+    auto message =
+        std::format("content length is longer than {}", CONFIG_HEXA_HTTP_MAX_REQUEST_LEN);
+    resp.set("message", message.c_str());
+    return send_json(req, resp, HTTPD_413_CONTENT_TOO_LARGE);
+  }
+  auto handler = reinterpret_cast<esp_err_t (*)(httpd_req_t*, JsonObject*)>(req->user_ctx);
+  if (handler == nullptr) {
+    LOGE("empty handler while trying to call from middleware");
+    return ESP_OK;
+  }
+  auto req_json_result = parse_json(req);
+  if (std::holds_alternative<JsonError>(req_json_result)) {
+    send_message_json(req, "json parse error", HTTPD_400_BAD_REQUEST);
+    return ESP_OK;
+  }
+  auto req_json = std::get<JsonObject>(req_json_result);
+  return handler(req, &req_json);
+}
+
+esp_err_t HttpModule::async_middleware(httpd_req_t* req) {
+  set_global_header(req);
+  if (!check_content_len(req)) {
+    JsonObject resp;
+    auto message =
+        std::format("content length is longer than {}", CONFIG_HEXA_HTTP_MAX_REQUEST_LEN);
+    resp.set("message", message.c_str());
+    return send_json(req, resp, HTTPD_413_CONTENT_TOO_LARGE);
+  }
+  auto handler = reinterpret_cast<ThreadWithArg<httpd_req_t*>*>(req->user_ctx);
+  if (handler == nullptr) {
+    LOGE("empty handler while trying to call from middleware");
+    return ESP_OK;
+  }
+  httpd_req_t* async_req;
+  httpd_req_async_handler_begin(req, &async_req);
+  auto thread_started = handler->start(req->uri, 2, 4096, async_req);
+  if (!thread_started) {
+    auto status = send_message_json(async_req,
+                                    "async handler is already running",
+                                    HTTPD_500_INTERNAL_SERVER_ERROR);
+    httpd_req_async_handler_complete(async_req);
+    return status;
+  }
+  return ESP_OK;
+};
+
+esp_err_t HttpModule::json_async_middleware(httpd_req_t* req) {
+  set_global_header(req);
+  if (!check_content_len(req)) {
+    JsonObject resp;
+    auto message =
+        std::format("content length is longer than {}", CONFIG_HEXA_HTTP_MAX_REQUEST_LEN);
+    resp.set("message", message.c_str());
+    return send_json(req, resp, HTTPD_413_CONTENT_TOO_LARGE);
+  }
+  auto handler = reinterpret_cast<ThreadWithArg<HttpJsonAsyncHandlerArgs>*>(req->user_ctx);
+  if (handler == nullptr) {
+    LOGE("empty handler while trying to call from middleware");
+    return ESP_OK;
+  }
+  auto req_json_result = parse_json(req);
+  if (std::holds_alternative<JsonError>(req_json_result)) {
+    send_message_json(req, "json parse error", HTTPD_400_BAD_REQUEST);
+    return ESP_OK;
+  }
+  auto req_json = std::get<JsonObject>(req_json_result);
+
+  httpd_req_t* async_req;
+  httpd_req_async_handler_begin(req, &async_req);
+  HttpJsonAsyncHandlerArgs args = {
+      .req = async_req,
+      .json = req_json,
+  };
+  auto thread_started = handler->start(req->uri, 2, 4096, args);
+  if (!thread_started) {
+    auto status = send_message_json(async_req,
+                                    "async handler is already running",
+                                    HTTPD_500_INTERNAL_SERVER_ERROR);
+    httpd_req_async_handler_complete(async_req);
+    return status;
+  }
+  return ESP_OK;
+};
+
+void HttpModule::register_modules_uris() {
+  for (auto module : modules) {
+    module->base_uri = base_uri + name + "/";
+    module->register_uris(this->server_instance);
+  }
+}
+
+void HttpModule::register_uris(httpd_handle_t server_instance) {
+  this->server_instance = server_instance;
+  register_modules_uris();
+  register_direct_uris();
+}
+
+void HttpModule::register_uri(const char* uri_address,
+                              httpd_method_t method,
+                              void* handler,
+                              esp_err_t (*middleware)(httpd_req_t* req)) {
+  if (!check_uri(uri_address)) {
+    return;
+  }
+  if (strlen(uri_address) == 1) {
+    uri_address = "";
+  }
+  auto full_uri_address = new std::string(base_uri + name + uri_address);
+  httpd_uri uri = {
+      .uri = full_uri_address->c_str(),
+      .method = method,
+      .handler = middleware,
+      .user_ctx = reinterpret_cast<void*>(handler),
+      .is_websocket = false,
+      .handle_ws_control_frames = false,
+      .supported_subprotocol = nullptr,
+      .ws_post_handshake_cb = nullptr,
+  };
+  ESP_ERROR_CHECK(httpd_register_uri_handler(this->server_instance, &uri));
+  LOGI("uri address registered %s %s", http_method_str(method), full_uri_address->c_str());
+}
+
+void HttpModule::register_uri(const char* uri_address,
+                              httpd_method_t method,
+                              esp_err_t (*handler)(httpd_req_t* req)) {
+  register_uri(uri_address, method, reinterpret_cast<void*>(handler), middleware);
+}
+
+void HttpModule::register_async_uri(const char* uri_address,
+                                    httpd_method_t method,
+                                    ThreadWithArg<httpd_req_t*>* handler) {
+  register_uri(uri_address, method, reinterpret_cast<void*>(handler), async_middleware);
+}
+
+void HttpModule::register_async_uri(const char* uri_address,
+                                    httpd_method_t method,
+                                    ThreadWithArg<HttpJsonAsyncHandlerArgs>* handler) {
+  register_uri(uri_address, method, reinterpret_cast<void*>(handler), json_async_middleware);
+}
+
+void HttpModule::register_uri(const char* uri_address,
+                              httpd_method_t method,
+                              esp_err_t (*handler)(httpd_req_t* req, JsonObject* req_json)) {
+  if (method == HTTP_GET) {
+    LOGW("GET handlers cannot be registered via json_middleware. %s registration ignored",
+         uri_address);
+    return;
+  }
+  register_uri(uri_address, method, reinterpret_cast<void*>(handler), json_middleware);
+}
+
+void HttpModule::register_ws_uri(const char* uri_address,
+                                 esp_err_t (*handler)(httpd_req_t* req),
+                                 esp_err_t (*post_handshake_handler)(httpd_req_t* req)) {
+  if (!check_uri(uri_address)) {
+    return;
+  }
+  if (strlen(uri_address) == 1) {
+    uri_address = "";
+  }
+  auto full_uri_address = new std::string(base_uri + name + uri_address);
+  httpd_uri_t uri = {
+      .uri = full_uri_address->c_str(),
+      .method = HTTP_GET,
+      .handler = handler,
+      .user_ctx = nullptr,
+      .is_websocket = true,
+      .handle_ws_control_frames = false,
+      .supported_subprotocol = nullptr,
+      .ws_post_handshake_cb = post_handshake_handler,
+
+  };
+  ESP_ERROR_CHECK(httpd_register_uri_handler(this->server_instance, &uri));
+  LOGI("uri address registered WS %s", full_uri_address->c_str());
+}
+
+void HttpModule::register_uri_with_option(const char* uri_address,
+                                          httpd_method_t method,
+                                          esp_err_t (*handler)(httpd_req_t* req)) {
+  register_uri(uri_address, method, reinterpret_cast<void*>(handler), middleware);
+  register_uri(uri_address, HTTP_OPTIONS, reinterpret_cast<void*>(options_handler), middleware);
+}
+
+void HttpModule::register_uri_with_option(const char* uri_address,
+                                          httpd_method_t method,
+                                          esp_err_t (*handler)(httpd_req_t* req,
+                                                               JsonObject* req_json)) {
+  register_uri(uri_address, method, reinterpret_cast<void*>(handler), json_middleware);
+  register_uri(uri_address, HTTP_OPTIONS, reinterpret_cast<void*>(options_handler), middleware);
+}
+
+void HttpModule::register_async_uri_with_option(const char* uri_address,
+                                                httpd_method_t method,
+                                                ThreadWithArg<httpd_req_t*>* handler) {
+  register_uri(uri_address, method, reinterpret_cast<void*>(handler), async_middleware);
+  register_uri(uri_address, HTTP_OPTIONS, reinterpret_cast<void*>(options_handler), middleware);
+}
+
+void HttpModule::register_async_uri_with_option(const char* uri_address,
+                                                httpd_method_t method,
+                                                ThreadWithArg<HttpJsonAsyncHandlerArgs>* handler) {
+  register_uri(uri_address, method, reinterpret_cast<void*>(handler), json_async_middleware);
+  register_uri(uri_address, HTTP_OPTIONS, reinterpret_cast<void*>(options_handler), middleware);
+}
+
+esp_err_t HttpModule::options_handler(httpd_req_t* req) {
+  httpd_resp_send(req, NULL, 0);
+  return ESP_OK;
+}
+
+void HttpModule::allow_cors(httpd_req_t* req) {
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", "GET, PUT, POST, OPTIONS");
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "Content-Type");
+}
+
+void HttpModule::set_keep_alive(httpd_req_t* req) {
+  httpd_resp_set_hdr(req, "Connection", "keep-alive");
+}
+
+void HttpModule::set_type_json(httpd_req_t* req) {
+  httpd_resp_set_type(req, "application/json");
+}
+
+bool HttpModule::check_uri(const char* uri) {
+  if (strlen(uri) == 0) {
+    LOGE("uri cannot be empty");
+    return false;
+  }
+  if (uri[0] != '/') {
+    LOGW("'%s' uri does not start with /. this may not be wat you intended to do", uri);
+  }
+  return true;
+}
+
+bool HttpModule::check_content_len(httpd_req_t* req) {
+  return req->content_len <= CONFIG_HEXA_HTTP_MAX_REQUEST_LEN;
+}
+
+esp_err_t HttpModule::send_json(httpd_req_t* req, Json& json) {
+  set_type_json(req);
+  auto json_string = json.stringify();
+  httpd_resp_send(req, json_string.c_str(), HTTPD_RESP_USE_STRLEN);
+  return ESP_OK;
+}
+
+esp_err_t HttpModule::send_json(httpd_req_t* req, Json& json, httpd_err_code_t status) {
+  set_type_json(req);
+  auto json_string = json.stringify();
+  return httpd_resp_send_err(req, status, json_string.c_str());
+}
+
+std::variant<JsonObject, JsonError> HttpModule::parse_json(httpd_req_t* req) {
+  char* req_body = new char[req->content_len];
+  httpd_req_recv(req, req_body, req->content_len);
+  auto req_json_result = JsonObject::parse(req_body);
+  delete[] req_body;
+  return req_json_result;
+}
+
+esp_err_t HttpModule::send_message_json(httpd_req_t* req, const char* message) {
+  JsonObject resp;
+  resp.set("message", message);
+  return send_json(req, resp);
+}
+
+esp_err_t HttpModule::send_message_json(httpd_req_t* req,
+                                        const char* message,
+                                        httpd_err_code_t status) {
+  JsonObject resp;
+  resp.set("message", message);
+  return send_json(req, resp, status);
+}
+
+esp_err_t HttpModule::send_success_json(httpd_req_t* req) {
+  return send_message_json(req, "success");
+}

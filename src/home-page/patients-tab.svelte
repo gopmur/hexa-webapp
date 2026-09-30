@@ -3,11 +3,11 @@
 	import { API_ADDRESS } from "$src/config";
 
   const onStartRecord = () => {
-    fetch(`${API_ADDRESS}/api/record/start`)
+    fetch(`${API_ADDRESS}/api/log/session/start`)
   }
 
   const onStopRecord = () => {
-    fetch(`${API_ADDRESS}/api/record/stop`)
+    fetch(`${API_ADDRESS}/api/log/session/stop`)
   }
 </script>
 

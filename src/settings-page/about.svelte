@@ -23,43 +23,73 @@
 	let otaProgressTotal = $state(Infinity);
 
 	const getVersion = async () => {
-		const response = await fetch(`${API_ADDRESS}/api/version`);
-		const response_json: VersionResponseType = await response.json();
-		apiVersion = response_json.api;
-		coreVersion = response_json.core;
+		try {
+			const response = await fetch(`${API_ADDRESS}/api/version`);
+			if (!response.ok) {
+				return;
+			}
+			const response_json: VersionResponseType = await response.json();
+			apiVersion = response_json.api;
+			coreVersion = response_json.core;
+		} catch {
+			apiVersion = "n/a";
+			coreVersion = "n/a";
+		}
 	};
 
 	const getUpdateStatus = async () => {
-		const response = await fetch(`${API_ADDRESS}/api/update/status`);
-		const response_json: UpdateStatusResponseType = await response.json();
-		const busy = response_json.busy;
-		updatePending = busy;
+		try {
+			const response = await fetch(`${API_ADDRESS}/api/update/status`);
+			if (!response.ok) {
+				return;
+			}
+			const response_json: UpdateStatusResponseType = await response.json();
+			const busy = response_json.busy;
+			updatePending = busy;
+		} catch {
+			updatePending = false;
+		}
 	};
 
 	const onCheckForUpdatesClicked = async () => {
-		checkForUpdatesPending = true;
-		const response = await fetch(`${API_ADDRESS}/api/update/check`);
-		const response_json: LatestVersionResponseType = await response.json();
-		latestApiVersion = response_json.api;
-		latestCoreVersion = response_json.core;
-		checkForUpdatesPending = false;
-		apiUpdateAvailable = latestApiVersion > apiVersion;
-		coreUpdateAvailable = latestCoreVersion > coreVersion;
-		updatesAvailable = coreUpdateAvailable || apiUpdateAvailable;
+		try {
+			checkForUpdatesPending = true;
+			const response = await fetch(`${API_ADDRESS}/api/update/check`);
+			if (!response.ok) {
+				checkForUpdatesPending = false;
+				return;
+			}
+			const response_json: LatestVersionResponseType = await response.json();
+			latestApiVersion = response_json.api;
+			latestCoreVersion = response_json.core;
+			checkForUpdatesPending = false;
+			apiUpdateAvailable = latestApiVersion > apiVersion;
+			coreUpdateAvailable = latestCoreVersion > coreVersion;
+			updatesAvailable = coreUpdateAvailable || apiUpdateAvailable;
+		} catch {
+			checkForUpdatesPending = false;
+		}
 	};
 
 	const onUpdateClicked = async () => {
-		updatePending = true;
-		apiUpdateAvailable = false;
-		coreUpdateAvailable = false;
-		updatesAvailable = false;
-		const response = await fetch(`${API_ADDRESS}/api/update`, {
-			method: "PUT",
-			body: JSON.stringify({
-				api: latestApiVersion,
-				core: latestCoreVersion,
-			}),
-		});
+		try {
+			updatePending = true;
+			apiUpdateAvailable = false;
+			coreUpdateAvailable = false;
+			updatesAvailable = false;
+			const response = await fetch(`${API_ADDRESS}/api/update`, {
+				method: "PUT",
+				body: JSON.stringify({
+					api: latestApiVersion,
+					core: latestCoreVersion,
+				}),
+			});
+			if (!response.ok) {
+				updatePending = false;
+			}
+		} catch {
+			updatePending = false;
+		}
 	};
 
 	const ws = getWebSocket();

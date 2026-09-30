@@ -55,15 +55,15 @@
 	let passwordHidden = $state(true);
 
 	const restart = async () => {
-		await fetch(`${API_ADDRESS}/api/restart`);
+		await fetch(`${API_ADDRESS}/api/system/restart`);
 		window.location.reload();
 	};
 	const restartEsp = async () => {
-		await fetch(`${API_ADDRESS}/api/restart/esp`);
+		await fetch(`${API_ADDRESS}/api/system/restart`);
 		window.location.reload();
 	};
 	const restartStm = async () => {
-		await fetch(`${API_ADDRESS}/api/restart/stm`);
+		await fetch(`${API_ADDRESS}/api/system/restart`);
 		window.location.reload();
 	};
 
@@ -72,7 +72,6 @@
 			return;
 		}
 		pendingWifiScan = true;
-		fetch(`${API_ADDRESS}/api/null`);
 		const scanResponse = await fetch(`${API_ADDRESS}/api/wifi/scan`);
 		getWifiStatus();
 		wifis = await scanResponse.json();
@@ -108,7 +107,7 @@
 	const connectToWifi = async () => {
 		wifiConnectionPending = true;
 		const response = await fetch(`${API_ADDRESS}/api/wifi/connect`, {
-			method: "POST",
+			method: "PUT",
 			body: JSON.stringify({
 				ssid: wifiSsidToConnect,
 				password: wifiPasswordInput,

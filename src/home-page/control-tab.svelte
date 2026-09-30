@@ -79,19 +79,19 @@
 		);
 		const requests: Promise<Response>[] = [];
 		requests.push(
-			fetch(`${API_ADDRESS}/api/automatic/params`, {
+			fetch(`${API_ADDRESS}/api/control/automatic/params`, {
 				method: "PUT",
 				body: JSON.stringify(initialParams.controlParams.automatic),
 			}),
 		);
 		requests.push(
-			fetch(`${API_ADDRESS}/api/semiautomatic/params`, {
+			fetch(`${API_ADDRESS}/api/control/semiautomatic/params`, {
 				method: "PUT",
 				body: JSON.stringify(initialParams.controlParams.semiautomatic),
 			}),
 		);
 		requests.push(
-			fetch(`${API_ADDRESS}/api/smart/params`, {
+			fetch(`${API_ADDRESS}/api/control/smart/params`, {
 				method: "PUT",
 				body: JSON.stringify(initialParams.controlParams.smart),
 			}),
@@ -105,19 +105,21 @@
 
 	const onZeroPos = async () => {
 		try {
-			await fetch(`${API_ADDRESS}/api/motors/zero_pos`);
-			toast.success("Motors zero posed successfully")
+			await fetch(`${API_ADDRESS}/api/motor/zero-pos`);
+			toast.success("Motors zero posed successfully");
 		} catch {
 			toast.error("Zero pos failed");
 		}
 	};
 
 	const getStatesFromApi = async () => {
-		const response = await fetch(`${API_ADDRESS}/api/states`);
+		const response = await fetch(`${API_ADDRESS}/api/control/params`);
 		if (!response.ok) {
 			throw new Error();
 		}
 		const responseData: ControlStates = await response.json();
+		responseData.mode =
+			responseData.mode === "semi-automatic" ? "semiautomatic" : responseData.mode;
 		responseData.controlParams.automatic.left.velocityThreshold = radToDeg(
 			responseData.controlParams.automatic.left.velocityThreshold,
 		);
@@ -131,26 +133,6 @@
 			responseData.controlParams.semiautomatic.stopAssistAngle,
 		);
 		return responseData;
-	};
-
-	const setRtc = async () => {
-		const date = new Date(Date.now());
-		const req_body = {
-			time: {
-				hours: date.getHours(),
-				minutes: date.getMinutes(),
-				seconds: date.getSeconds(),
-			},
-			date: {
-				year: date.getFullYear(),
-				month: date.getMonth(),
-				day: date.getDate(),
-			},
-		};
-		await fetch(`${API_ADDRESS}/api/date-time`, {
-			method: "PUT",
-			body: JSON.stringify(req_body),
-		});
 	};
 
 	const loadStates = async () => {
@@ -167,17 +149,19 @@
 	const onRunningToggle = async () => {
 		controlStates.running = !controlStates.running;
 		if (controlStates.running)
-			await fetch(`${API_ADDRESS}/api/start`, { method: "PUT" });
-		else await fetch(`${API_ADDRESS}/api/stop`, { method: "PUT" });
+			await fetch(`${API_ADDRESS}/api/control/start`, { method: "PUT" });
+		else await fetch(`${API_ADDRESS}/api/control/stop`, { method: "PUT" });
 	};
 
 	const onModeChange = async (value: string) => {
-		await fetch(`${API_ADDRESS}/api/set-mode/${value}`, { method: "PUT" });
+		const normalizedValue = value === "semi-automatic" ? "semiautomatic" : value;
+		await fetch(`${API_ADDRESS}/api/control/set-mode/${normalizedValue}`, {
+			method: "PUT",
+		});
 	};
 
 	onMount(() => {
 		loadStates();
-		setRtc();
 	});
 </script>
 
@@ -193,7 +177,7 @@
 				<Tabs.Trigger class="flex flex-col" value="automatic">
 					Automatic
 				</Tabs.Trigger>
-				<Tabs.Trigger class="flex flex-col" value="semi-automatic">
+				<Tabs.Trigger class="flex flex-col" value="semiautomatic">
 					Semi-Automatic
 				</Tabs.Trigger>
 				<Tabs.Trigger class="flex flex-col" value="smart">Smart</Tabs.Trigger>
@@ -238,7 +222,7 @@
 							bind:controlParams={controlStates.controlParams.automatic}
 						/>
 					</Tabs.Content>
-					<Tabs.Content value="semi-automatic" class="flex-0">
+					<Tabs.Content value="semiautomatic" class="flex-0">
 						<SemiautomaticControlTab
 							bind:controlParams={controlStates.controlParams.semiautomatic}
 						/>

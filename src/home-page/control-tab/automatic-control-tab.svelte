@@ -81,7 +81,7 @@
 	};
 
 	const onParamCommit = async () => {
-		await fetch(`${API_ADDRESS}/api/automatic/params`, {
+		await fetch(`${API_ADDRESS}/api/control/automatic/params`, {
 			method: "PUT",
 			body: JSON.stringify({
 				left: {

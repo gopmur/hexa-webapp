@@ -97,7 +97,7 @@
 	};
 
 	const onParamCommit = async () => {
-		await fetch(`${API_ADDRESS}/api/semiautomatic/params`, {
+		await fetch(`${API_ADDRESS}/api/control/semiautomatic/params`, {
 			method: "PUT",
 			body: JSON.stringify({
 				weakLeg: controlParams.weakLeg,

@@ -5,7 +5,7 @@
 	import { API_ADDRESS } from "$src/config";
 	let { controlParams = $bindable() }: SmartControlTabProps = $props();
 	const onParamCommit = async () => {
-		await fetch(`${API_ADDRESS}/api/smart/params`, {
+		await fetch(`${API_ADDRESS}/api/control/smart/params`, {
 			method: "PUT",
 			body: JSON.stringify({
 				left: {

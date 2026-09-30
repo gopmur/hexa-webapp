@@ -67,7 +67,7 @@
 	};
 
 	type LsResponse = {
-		entries: Array<Entry>;
+		files: Array<Entry>;
 	};
 
 	type BreadcrumbItem = {
@@ -89,11 +89,15 @@
 	]);
 
 	const getFileManagerStates = async () => {
-		const lsResponse = await fetch(
-			`${API_ADDRESS}/api/file-manager/ls${workingDirectory.slice(0, -1)}`,
-		);
+		const lsResponse = await fetch(`${API_ADDRESS}/api/fs/ls`, {
+			method: "PUT",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ path: workingDirectory }),
+		});
 		const lsResponseData: LsResponse = await lsResponse.json();
-		entries = lsResponseData.entries;
+		entries = lsResponseData.files;
 		entries.sort((a, b) => (a.name == b.name ? 0 : a.name < b.name ? -1 : 1));
 		entries.sort((a, b) =>
 			a.type == b.type ? 0 : a.type == "folder" ? -1 : 1,

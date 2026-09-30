@@ -11,7 +11,7 @@
 	const ws = getWebSocket();
 
 	const stopMotors = async () => {
-		await fetch(`${API_ADDRESS}/api/stop`, { method: "PUT" });
+		await fetch(`${API_ADDRESS}/api/control/stop`, { method: "PUT" });
 		running = false;
 	};
 

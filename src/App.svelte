@@ -14,13 +14,10 @@
 		"/settings": SettingsPage,
 	};
 
-	const ws = new WebSocket(`${WS_API_ADDRESS}/api/data`);
-	
+	const ws = new WebSocket(`${WS_API_ADDRESS}/api/control/manual/torque`);
+
 	onMount(() => {
 		setWebSocket(ws);
-		fetch(`${API_ADDRESS}/api/streams/stop/imu`);
-		fetch(`${API_ADDRESS}/api/streams/stop/esp_cpu_usage`);
-		fetch(`${API_ADDRESS}/api/streams/stop/motor`);
 	});
 </script>
 

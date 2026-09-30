@@ -1,4 +1,4 @@
-export type RunningMode = "manual" | "automatic" | "semi-automatic" | "smart";
+export type RunningMode = "manual" | "automatic" | "semiautomatic" | "smart";
 
 export type ManualControlParamsLeg = {
 	torque: number;
