@@ -13,6 +13,7 @@
 	let streamSocket: WebSocket | null = null;
 	let logSocket: WebSocket | null = null;
 	let logMessages: string[] = $state([]);
+	let logConnectionState = $state("Disconnected");
 
 	type ReceivedEspTaskDataType = {
 		cpuUsage: number;
@@ -121,6 +122,14 @@
 		t: number,
 		chartData: Array<object & { t: number }>,
 	) => {
+		if (
+			!Number.isFinite(t) ||
+			!Object.values(dataPoint).every(
+				(value) => typeof value === "number" && Number.isFinite(value),
+			)
+		) {
+			return chartData;
+		}
 		const newPoint = {
 			t,
 			...dataPoint,
@@ -286,13 +295,24 @@
 
 	const connectLogStream = () => {
 		closeLogSocket();
+		logConnectionState = "Connecting to system logs...";
 		logSocket = new WebSocket(`${WS_API_ADDRESS}/api/log/system`);
+		logSocket.onopen = () => {
+			logConnectionState = "Connected; waiting for system logs...";
+		};
 		logSocket.onmessage = (event) => {
 			const text = String(event.data ?? "").trim();
 			if (!text) {
 				return;
 			}
 			logMessages = [...logMessages.slice(-199), text];
+			logConnectionState = "Connected";
+		};
+		logSocket.onerror = () => {
+			logConnectionState = "System log connection failed";
+		};
+		logSocket.onclose = () => {
+			logConnectionState = "System log connection closed";
 		};
 	};
 
@@ -302,22 +322,49 @@
 		streamSocket = new WebSocket(`${WS_API_ADDRESS}/api/stream/${streamName}`);
 		streamSocket.onmessage = (event) => {
 			const data: WsData = JSON.parse(event.data);
-			const normalizedTasks = Object.fromEntries(
-				Object.entries(data.tasks ?? {}).map(([name, task]) => [
-					name,
-					{
-						cpuUsage: task.cpu,
+			if (!Number.isFinite(data.microseconds)) {
+				return;
+			}
+			const rootTaskRecords: Record<
+				string,
+				{ cpu: number; minFreeStack: number; stackSize?: number }
+			> = {};
+			for (const [name, task] of Object.entries(data)) {
+				if (
+					name !== "microseconds" &&
+					!name.startsWith("IDLE") &&
+					typeof task === "object" &&
+					task !== null &&
+					"cpu" in task &&
+					typeof task.cpu === "number" &&
+					"minFreeStack" in task &&
+					typeof task.minFreeStack === "number"
+				) {
+					rootTaskRecords[name] = {
+						cpu: task.cpu,
 						minFreeStack: task.minFreeStack,
-						stackSize: task.stackSize,
-					},
-				]),
+						stackSize:
+							"stackSize" in task && typeof task.stackSize === "number"
+								? task.stackSize
+								: undefined,
+					};
+				}
+			}
+			const taskRecords = data.tasks ?? rootTaskRecords;
+			const normalizedTasks = Object.fromEntries(
+				Object.entries(taskRecords)
+					.filter(([name]) => !name.startsWith("IDLE"))
+					.map(([name, task]) => [
+						name,
+						{
+							cpuUsage: task.cpu,
+							minFreeStack: task.minFreeStack,
+							stackSize: task.stackSize,
+						},
+					]),
 			) as Record<string, ReceivedEspTaskDataType>;
 			const stmTaskData = data.stmCpuUsage;
 			const espTaskData = normalizedTasks;
-			if (espTaskData) {
-				delete espTaskData["IDLE0"];
-				delete espTaskData["IDLE1"];
-			}
 			const imuData =
 				data.imu ??
 				((data.x !== undefined || data.y !== undefined || data.z !== undefined)
@@ -458,13 +505,25 @@
 
 	const onDataTabChange = (nextDataTab: string) => {
 		dataTab = nextDataTab as DataTab;
+		if (dataTab === "logs") {
+			connectLogStream();
+		} else {
+			closeLogSocket();
+		}
+		imuChartData = [];
+		motorChartData = [];
+		heapChartData = [];
+		timeOffset = 0;
 		setTimeOffset = true;
-		connectDataStream();
+		if (dataTab === "logs") {
+			closeStreamSocket();
+		} else {
+			connectDataStream();
+		}
 	};
 
 	onMount(() => {
 		connectDataStream();
-		connectLogStream();
 		return () => {
 			closeStreamSocket();
 			closeLogSocket();
@@ -545,6 +604,7 @@
 								)
 							: undefined}
 					/>
+					{#if heapChartData.length > 0}
 					<Chart.Container config={chartConfig}>
 						<LineChart
 							data={heapChartData}
@@ -558,11 +618,12 @@
 								},
 							}}
 							xDomain={[
-								heapChartData.at(0)?.t,
-								Number(heapChartData.at(0)?.t) + MAX_T_SPAN,
+								heapChartData.at(0)?.t ?? 0,
+								(heapChartData.at(0)?.t ?? 0) + MAX_T_SPAN,
 							]}
 						></LineChart>
 					</Chart.Container>
+					{/if}
 				</div>
 			</div>
 		</Tabs.Content>
@@ -580,6 +641,7 @@
 						)
 					: undefined}
 			/>
+			{#if imuChartData.length > 0}
 			<Chart.Container config={chartConfig}>
 				<LineChart
 					data={imuChartData}
@@ -593,12 +655,13 @@
 						},
 					}}
 					yDomain={[-180, 180]}
-					xDomain={[
-						imuChartData.at(0)?.t,
-						Number(imuChartData.at(0)?.t) + MAX_T_SPAN,
+						xDomain={[
+							imuChartData.at(0)?.t ?? 0,
+							(imuChartData.at(0)?.t ?? 0) + MAX_T_SPAN,
 					]}
 				></LineChart>
 			</Chart.Container>
+			{/if}
 		</Tabs.Content>
 		<Tabs.Content
 			value="motor"
@@ -615,6 +678,7 @@
 							)
 						: undefined}
 				/>
+				{#if motorChartData.length > 0}
 				<Chart.Container config={chartConfig}>
 					<LineChart
 						data={motorChartData}
@@ -629,18 +693,20 @@
 						}}
 						yDomain={[-90, 180]}
 						xDomain={[
-							motorChartData.at(0)?.t,
-							Number(motorChartData.at(0)?.t) + MAX_T_SPAN,
+							motorChartData.at(0)?.t ?? 0,
+							(motorChartData.at(0)?.t ?? 0) + MAX_T_SPAN,
 						]}
 					></LineChart>
 				</Chart.Container>
+				{/if}
 			</div>
 		</Tabs.Content>
 		<Tabs.Content value="logs" class="overflow-hidden h-full p-4">
 			<div class="h-full rounded-md border bg-background p-3 overflow-auto font-mono text-xs">
 				{#if logMessages.length === 0}
-					<div class="text-muted-foreground">Waiting for logs...</div>
+					<div class="text-muted-foreground">{logConnectionState}</div>
 				{:else}
+					<div class="mb-2 text-muted-foreground">{logConnectionState}</div>
 					{#each logMessages as logLine}
 						<div class="whitespace-pre-wrap break-words">{logLine}</div>
 					{/each}

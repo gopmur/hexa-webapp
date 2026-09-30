@@ -22,6 +22,8 @@
 	import { cn } from "$lib/utils";
 	import { settings } from "./context/settings";
 
+	const WIFI_API_ADDRESS = `${API_ADDRESS}/api/system/wifi`;
+
 	type WifiScanRecordType = {
 		rssi: number;
 		ssid: string;
@@ -72,29 +74,45 @@
 			return;
 		}
 		pendingWifiScan = true;
-		const scanResponse = await fetch(`${API_ADDRESS}/api/wifi/scan`);
-		getWifiStatus();
-		wifis = await scanResponse.json();
-		wifis.sort((a, b) => b.rssi - a.rssi);
-		pendingWifiScan = false;
+		try {
+			const scanResponse = await fetch(`${WIFI_API_ADDRESS}/scan`);
+			if (!scanResponse.ok) {
+				wifis = [];
+				return;
+			}
+			const scanResult: WifiScanRecordType[] = await scanResponse.json();
+			wifis = Array.isArray(scanResult)
+				? scanResult.sort((a, b) => b.rssi - a.rssi)
+				: [];
+			void getWifiStatus();
+		} catch {
+			wifis = [];
+		} finally {
+			pendingWifiScan = false;
+		}
 	};
 
 	const getWifiStatus = async () => {
 		wifiStatusLoading = true;
-
-		const response = await fetch(`${API_ADDRESS}/api/wifi`);
-		const connected_wifi: ConnectedWifiResponseType = await response.json();
-
-		if (connected_wifi.connected) {
-			connectedWifiRssi = connected_wifi.rssi;
-			connectedWifiSsid = connected_wifi.ssid;
-			connectedWifiBssid = connected_wifi.bssid;
-			wifiConnected = true;
-		} else {
+		try {
+			const response = await fetch(WIFI_API_ADDRESS);
+			if (!response.ok) {
+				throw new Error(`Wi-Fi status request failed: ${response.status}`);
+			}
+			const connected_wifi: ConnectedWifiResponseType = await response.json();
+			if (connected_wifi.connected) {
+				connectedWifiRssi = connected_wifi.rssi;
+				connectedWifiSsid = connected_wifi.ssid;
+				connectedWifiBssid = connected_wifi.bssid;
+				wifiConnected = true;
+			} else {
+				wifiConnected = false;
+			}
+		} catch {
 			wifiConnected = false;
+		} finally {
+			wifiStatusLoading = false;
 		}
-
-		if (connected_wifi) wifiStatusLoading = false;
 	};
 
 	const onSelectedWifiChange = (wifiBssid: string) => {
@@ -106,20 +124,25 @@
 
 	const connectToWifi = async () => {
 		wifiConnectionPending = true;
-		const response = await fetch(`${API_ADDRESS}/api/wifi/connect`, {
-			method: "PUT",
-			body: JSON.stringify({
-				ssid: wifiSsidToConnect,
-				password: wifiPasswordInput,
-			}),
-		});
-		if (!response.ok) {
+		try {
+			const response = await fetch(`${WIFI_API_ADDRESS}/connect`, {
+				method: "PUT",
+				body: JSON.stringify({
+					ssid: wifiSsidToConnect,
+					password: wifiPasswordInput,
+				}),
+			});
+			if (!response.ok) {
+				wifiConnectionError = true;
+			} else {
+				wifiConnectionError = false;
+				await getWifiStatus();
+			}
+		} catch {
 			wifiConnectionError = true;
-		} else {
-			wifiConnectionError = false;
-			await getWifiStatus();
+		} finally {
+			wifiConnectionPending = false;
 		}
-		wifiConnectionPending = false;
 	};
 
 	const onPasswordVisiblityClick = () => {
@@ -127,8 +150,12 @@
 	};
 
 	const onDisconnectWifiClick = async () => {
-		await fetch(`${API_ADDRESS}/api/wifi/disconnect`);
-		await getWifiStatus();
+		try {
+			await fetch(`${WIFI_API_ADDRESS}/disconnect`);
+			await getWifiStatus();
+		} catch {
+			wifiConnected = false;
+		}
 	};
 
 	onMount(() => {

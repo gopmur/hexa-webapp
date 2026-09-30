@@ -77,6 +77,7 @@
 
 	let workingDirectory = $state("/");
 	let entries: Array<Entry> = $state([]);
+	let fileManagerError = $state("");
 	let redoHistory: Array<string> = $state([]);
 	let undoHistory: Array<string> = $state([]);
 	let isTouchDevice = $state(false);
@@ -89,19 +90,32 @@
 	]);
 
 	const getFileManagerStates = async () => {
-		const lsResponse = await fetch(`${API_ADDRESS}/api/fs/ls`, {
-			method: "PUT",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({ path: workingDirectory }),
-		});
-		const lsResponseData: LsResponse = await lsResponse.json();
-		entries = lsResponseData.files;
-		entries.sort((a, b) => (a.name == b.name ? 0 : a.name < b.name ? -1 : 1));
-		entries.sort((a, b) =>
-			a.type == b.type ? 0 : a.type == "folder" ? -1 : 1,
-		);
+		try {
+			const lsResponse = await fetch(`${API_ADDRESS}/api/fs/ls`, {
+				method: "PUT",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ path: workingDirectory }),
+			});
+			if (!lsResponse.ok) {
+				throw new Error(`File listing request failed: ${lsResponse.status}`);
+			}
+			const lsResponseData: LsResponse = await lsResponse.json();
+			if (!Array.isArray(lsResponseData.files)) {
+				throw new Error("File listing response is invalid");
+			}
+			entries = lsResponseData.files.sort((a, b) =>
+				a.name == b.name ? 0 : a.name < b.name ? -1 : 1,
+			);
+			entries.sort((a, b) =>
+				a.type == b.type ? 0 : a.type == "folder" ? -1 : 1,
+			);
+			fileManagerError = "";
+		} catch {
+			entries = [];
+			fileManagerError = "Unable to load files from the device.";
+		}
 	};
 
 	const updateColumns = () => {
@@ -213,6 +227,9 @@
 		class="sm:grid sm:gap-10 w-full max-h-full overflow-auto px-6 pb-4 flex-col"
 		style={`grid-template-columns: repeat(${columns}, minmax(0, 1fr));`}
 	>
+		{#if fileManagerError}
+			<p class="col-span-full text-destructive">{fileManagerError}</p>
+		{/if}
 		{#each entries as entry, i (`${entry.name}${entry.type}`)}
 			<div class="flex items-center justify-center">
 				<Button

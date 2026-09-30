@@ -30,18 +30,25 @@ int SystemLogger::log_vprintf(const char* fmt, va_list args) {
   log_file_mutex.give();
   va_end(file_args);
 
-  auto ws_connections = ws_task.get_connections();
+  va_list size_args;
+  va_copy(size_args, args);
+  int formatted_len = vsnprintf(nullptr, 0, fmt, size_args);
+  va_end(size_args);
 
-  for (auto connection : ws_connections) {
+  if (formatted_len >= 0) {
+    std::string formatted(static_cast<size_t>(formatted_len) + 1, '\0');
     va_copy(ws_args, args);
-    size_t len = vsnprintf(nullptr, 0, fmt, args);
-    if (connection.stream == WsStream::SYS_LOG) {
-      auto buffer = new std::string;
-      buffer->resize(len);
-      vsprintf(buffer->data(), fmt, ws_args);
-      ws_task.sys_log_queue.send(std::make_pair(connection.fd, buffer));
-    }
+    vsnprintf(formatted.data(), formatted.size(), fmt, ws_args);
     va_end(ws_args);
+    formatted.resize(static_cast<size_t>(formatted_len));
+
+    auto ws_connections = ws_task.get_connections();
+    for (auto connection : ws_connections) {
+      if (connection.stream == WsStream::SYS_LOG) {
+        ws_task.sys_log_queue.send(
+            std::make_pair(connection.fd, new std::string(formatted)));
+      }
+    }
   }
 
   int ret = vprintf(fmt, args);
