@@ -9,11 +9,21 @@
 	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
 	import ChartLegend from "./data-tab/chart-legend.svelte";
 	import Separator from "$lib/components/ui/separator/separator.svelte";
+	import Button from "$lib/components/ui/button/button.svelte";
+	import { ArrowDownToLine, Pause } from "lucide-svelte";
+	import * as Card from "$lib/components/ui/card/index.js";
+	import { ArrowDown, ArrowDownUp, ArrowUp } from "lucide-svelte";
 
-	let streamSocket: WebSocket | null = null;
+	let streamSockets: WebSocket[] = [];
 	let logSocket: WebSocket | null = null;
 	let logMessages: string[] = $state([]);
 	let logConnectionState = $state("Disconnected");
+	let logScrollElement: HTMLDivElement | null = $state(null);
+	let autoScrollLogs = $state(true);
+	let { dashboard = false }: { dashboard?: boolean } = $props();
+	type TaskSortKey = "name" | "cpuUsage" | "maxStackUsagePercent" | "maxStackUsage" | "minFreeStack" | "stackSize";
+	let taskSortKey: TaskSortKey = $state("cpuUsage");
+	let taskSortDirection: "asc" | "desc" = $state("desc");
 
 	type ReceivedEspTaskDataType = {
 		cpuUsage: number;
@@ -114,6 +124,42 @@
 	let stmStackSizesLoading = true;
 	let timeOffset = 0;
 	let setTimeOffset = true;
+	const TASK_MISSING_GRACE_PACKETS = 50;
+	const sortedTaskTableData = $derived.by(() =>
+		[...espTaskTableData].sort((left, right) => {
+			const leftValue = left[taskSortKey];
+			const rightValue = right[taskSortKey];
+			if (leftValue === undefined || rightValue === undefined) {
+				return leftValue === rightValue ? 0 : leftValue === undefined ? 1 : -1;
+			}
+			const comparison =
+				typeof leftValue === "string" && typeof rightValue === "string"
+					? leftValue.localeCompare(rightValue)
+					: Number(leftValue) - Number(rightValue);
+			return taskSortDirection === "asc" ? comparison : -comparison;
+		}),
+	);
+
+	const sortTasksBy = (key: TaskSortKey) => {
+		if (taskSortKey === key) {
+			taskSortDirection = taskSortDirection === "asc" ? "desc" : "asc";
+			return;
+		}
+		taskSortKey = key;
+		taskSortDirection = key === "name" ? "asc" : "desc";
+	};
+
+	const sortIcon = (key: TaskSortKey) => {
+		if (taskSortKey !== key) return ArrowDownUp;
+		return taskSortDirection === "asc" ? ArrowUp : ArrowDown;
+	};
+
+	$effect(() => {
+		logMessages.length;
+		if (autoScrollLogs && logScrollElement) {
+			logScrollElement.scrollTop = logScrollElement.scrollHeight;
+		}
+	});
 
 	const MAX_T_SPAN = 5_000_000;
 
@@ -168,7 +214,7 @@
 			taskRecord.absentCounter++;
 		}
 		newTaskTableData = newTaskTableData.filter(
-			(serviceStatus) => serviceStatus.absentCounter < 1,
+			(serviceStatus) => serviceStatus.absentCounter <= TASK_MISSING_GRACE_PACKETS,
 		);
 		for (const name in receivedTaskData) {
 			const serviceStatus = newTaskTableData.find(
@@ -280,10 +326,8 @@
 	};
 
 	const closeStreamSocket = () => {
-		if (streamSocket) {
-			streamSocket.close();
-			streamSocket = null;
-		}
+		for (const socket of streamSockets) socket.close();
+		streamSockets = [];
 	};
 
 	const closeLogSocket = () => {
@@ -301,7 +345,9 @@
 			logConnectionState = "Connected; waiting for system logs...";
 		};
 		logSocket.onmessage = (event) => {
-			const text = String(event.data ?? "").trim();
+			const text = String(event.data ?? "")
+				.replace(/\u001b\[[0-9;]*m/g, "")
+				.trimEnd();
 			if (!text) {
 				return;
 			}
@@ -316,11 +362,11 @@
 		};
 	};
 
-	const connectDataStream = () => {
-		closeStreamSocket();
-		const streamName = dataTab === "esp-task-data" ? "tasks" : dataTab;
-		streamSocket = new WebSocket(`${WS_API_ADDRESS}/api/stream/${streamName}`);
-		streamSocket.onmessage = (event) => {
+	const connectDataStream = (requestedStreamName?: string) => {
+		const streamName = requestedStreamName ?? (dataTab === "esp-task-data" ? "tasks" : dataTab);
+		const socket = new WebSocket(`${WS_API_ADDRESS}/api/stream/${streamName}`);
+		streamSockets.push(socket);
+		socket.onmessage = (event) => {
 			const data: WsData = JSON.parse(event.data);
 			if (!Number.isFinite(data.microseconds)) {
 				return;
@@ -503,6 +549,16 @@
 		desktop: { label: "Desktop", color: "var(--chart-1)" },
 	} satisfies Chart.ChartConfig;
 
+	const logLevelClass = (line: string) => {
+		const level = line.match(/^\s*\[?([EWIDV])(?:\]|\s|\()/)?.[1];
+		if (level === "E") return "border-red-500 text-red-700 dark:text-red-300";
+		if (level === "W") return "border-amber-500 text-amber-700 dark:text-amber-300";
+		if (level === "I") return "border-emerald-500 text-emerald-700 dark:text-emerald-300";
+		if (level === "D") return "border-cyan-500 text-cyan-700 dark:text-cyan-300";
+		if (level === "V") return "border-zinc-400 text-zinc-600 dark:text-zinc-400";
+		return "border-transparent text-foreground";
+	};
+
 	const onDataTabChange = (nextDataTab: string) => {
 		dataTab = nextDataTab as DataTab;
 		if (dataTab === "logs") {
@@ -515,15 +571,19 @@
 		heapChartData = [];
 		timeOffset = 0;
 		setTimeOffset = true;
-		if (dataTab === "logs") {
-			closeStreamSocket();
-		} else {
-			connectDataStream();
-		}
+		closeStreamSocket();
+		if (dataTab !== "logs") connectDataStream();
 	};
 
 	onMount(() => {
-		connectDataStream();
+		if (dashboard) {
+			connectDataStream("tasks");
+			connectDataStream("imu");
+			connectDataStream("motor");
+			connectLogStream();
+		} else {
+			connectDataStream();
+		}
 		return () => {
 			closeStreamSocket();
 			closeLogSocket();
@@ -531,6 +591,136 @@
 	});
 </script>
 
+{#if dashboard}
+	<div class="grid h-full min-h-0 grid-cols-2 grid-rows-2 gap-2 overflow-hidden p-2">
+		<Card.Root class="min-h-0 min-w-0 gap-0 rounded-lg py-0">
+			<header class="flex shrink-0 items-center justify-between border-b px-3 py-2">
+				<h3 class="text-xs font-semibold">Task monitor</h3>
+				<span class="text-[10px] text-muted-foreground">{sortedTaskTableData.length} active</span>
+			</header>
+			<div class="min-h-0 flex-1 overflow-auto">
+				{#if sortedTaskTableData.length === 0}
+					<p class="p-3 text-xs text-muted-foreground">Waiting for task telemetry...</p>
+				{:else}
+					<Table.Root>
+						<Table.Header>
+							<Table.Row>
+								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("name")}>Task {#key sortIcon("name")} {@const Icon = sortIcon("name")}<Icon class="ml-1 size-3" />{/key}</Button></Table.Head>
+								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("cpuUsage")}>CPU {@const Icon = sortIcon("cpuUsage")}<Icon class="ml-1 size-3" /></Button></Table.Head>
+								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("maxStackUsagePercent")}>Stack % {@const Icon = sortIcon("maxStackUsagePercent")}<Icon class="ml-1 size-3" /></Button></Table.Head>
+								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("maxStackUsage")}>Used {@const Icon = sortIcon("maxStackUsage")}<Icon class="ml-1 size-3" /></Button></Table.Head>
+								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("minFreeStack")}>Free {@const Icon = sortIcon("minFreeStack")}<Icon class="ml-1 size-3" /></Button></Table.Head>
+							</Table.Row>
+						</Table.Header>
+						<Table.Body>
+							{#each sortedTaskTableData as task (task.name)}
+								<Table.Row>
+									<Table.Cell class="font-medium">{task.name}</Table.Cell>
+									<Table.Cell
+										style={`background-color: oklch(0.795 0.184 86.047 / ${percentToLightness(task.cpuUsage)});`}
+									>
+										{task.cpuUsage.toFixed(1)}%
+									</Table.Cell>
+									<Table.Cell
+										style={`background-color: oklch(0.795 0.184 86.047 / ${numberIsValid(task.maxStackUsagePercent) ? percentToLightness(task.maxStackUsagePercent) : 0});`}
+									>
+										{numberIsValid(task.maxStackUsagePercent) ? `${task.maxStackUsagePercent.toFixed(1)}%` : "NA"}
+									</Table.Cell>
+									<Table.Cell
+										style={`background-color: oklch(0.795 0.184 86.047 / ${numberIsValid(task.maxStackUsagePercent) ? percentToLightness(task.maxStackUsagePercent) : 0});`}
+									>
+										{numberIsValid(task.maxStackUsage)
+											? formatMemorySize(task.maxStackUsage)
+											: "NA"}
+									</Table.Cell>
+									<Table.Cell>{formatMemorySize(task.minFreeStack)}</Table.Cell>
+								</Table.Row>
+							{/each}
+						</Table.Body>
+					</Table.Root>
+				{/if}
+			</div>
+		</Card.Root>
+		<Card.Root class="flex min-h-0 min-w-0 flex-col gap-0 rounded-lg py-0">
+			<header class="shrink-0 border-b px-3 py-2">
+				<h3 class="text-xs font-semibold">IMU orientation</h3>
+			</header>
+			<ChartLegend
+				series={imuSeries}
+				values={imuChartData.at(-1)
+					? Object.fromEntries(Object.entries(imuChartData.at(-1) ?? {}).filter(([key]) => key !== "t").map(([key, value]) => [key, formatChartValue(value, " deg")]))
+					: undefined}
+			/>
+			{#if imuChartData.length > 0}
+				<Chart.Container class="min-h-0 flex-1 aspect-auto" config={chartConfig}>
+					<LineChart
+						data={imuChartData}
+						x="t"
+						axis="x"
+						series={imuSeries}
+						props={{ highlight: { points: false }, xAxis: { format: (value) => String(value / 1_000_000) } }}
+						yDomain={[-180, 180]}
+						xDomain={[imuChartData[0].t, imuChartData[0].t + MAX_T_SPAN]}
+					/>
+				</Chart.Container>
+			{:else}
+				<p class="p-3 text-xs text-muted-foreground">Waiting for IMU telemetry...</p>
+			{/if}
+		</Card.Root>
+		<Card.Root class="flex min-h-0 min-w-0 flex-col gap-0 rounded-lg py-0">
+			<header class="shrink-0 border-b px-3 py-2">
+				<h3 class="text-xs font-semibold">Motor position</h3>
+			</header>
+			<ChartLegend
+				series={motorSeries}
+				values={motorChartData.at(-1)
+					? Object.fromEntries(Object.entries(motorChartData.at(-1) ?? {}).filter(([key]) => key !== "t").map(([key, value]) => [key, formatChartValue(value, " deg")]))
+					: undefined}
+			/>
+			{#if motorChartData.length > 0}
+				<Chart.Container class="min-h-0 flex-1 aspect-auto" config={chartConfig}>
+					<LineChart
+						data={motorChartData}
+						x="t"
+						axis="x"
+						series={motorSeries}
+						props={{ highlight: { points: false }, xAxis: { format: (value) => String(value / 1_000_000) } }}
+						yDomain={[-90, 180]}
+						xDomain={[motorChartData[0].t, motorChartData[0].t + MAX_T_SPAN]}
+					/>
+				</Chart.Container>
+			{:else}
+				<p class="p-3 text-xs text-muted-foreground">Waiting for motor telemetry...</p>
+			{/if}
+		</Card.Root>
+		<Card.Root class="flex min-h-0 min-w-0 flex-col gap-0 rounded-lg py-0">
+			<header class="flex shrink-0 items-center justify-between border-b px-3 py-2">
+				<h3 class="text-xs font-semibold">System log</h3>
+				<div class="flex items-center gap-2">
+					<span class="text-[10px] text-muted-foreground">{logConnectionState}</span>
+					<Button
+						variant="outline"
+						size="sm"
+						aria-pressed={autoScrollLogs}
+						title={autoScrollLogs ? "Pause automatic scrolling" : "Resume automatic scrolling"}
+						onclick={() => (autoScrollLogs = !autoScrollLogs)}
+					>
+						{#if autoScrollLogs}<ArrowDownToLine /> Auto-scroll{:else}<Pause /> Paused{/if}
+					</Button>
+				</div>
+			</header>
+			<div bind:this={logScrollElement} class="min-h-0 flex-1 space-y-1 overflow-auto p-3 font-mono text-[11px]">
+				{#if logMessages.length === 0}
+					<p class="text-muted-foreground">Waiting for system logs...</p>
+				{:else}
+					{#each logMessages as logLine, index (`${index}-${logLine}`)}
+						<div class={`whitespace-pre-wrap break-words border-l-2 pl-2 ${logLevelClass(logLine)}`}>{logLine}</div>
+					{/each}
+				{/if}
+			</div>
+		</Card.Root>
+	</div>
+{:else}
 <Tabs.Root
 	bind:value={dataTab}
 	class="h-full overflow-hidden gap-0"
@@ -551,16 +741,16 @@
 				<Table.Root class="[&_tr]:hover:bg-background">
 					<Table.Header>
 						<Table.Row>
-							<Table.Head>Service</Table.Head>
-							<Table.Head>CPU Usage</Table.Head>
-							<Table.Head>Stack (%)</Table.Head>
-							<Table.Head class="max-sm:hidden">Stack Used</Table.Head>
-							<Table.Head>Stack Free</Table.Head>
-							<Table.Head class="max-sm:hidden">Stack Size</Table.Head>
+								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("name")}>Service {@const Icon = sortIcon("name")}<Icon class="ml-1 size-3" /></Button></Table.Head>
+								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("cpuUsage")}>CPU Usage {@const Icon = sortIcon("cpuUsage")}<Icon class="ml-1 size-3" /></Button></Table.Head>
+								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("maxStackUsagePercent")}>Stack (%) {@const Icon = sortIcon("maxStackUsagePercent")}<Icon class="ml-1 size-3" /></Button></Table.Head>
+								<Table.Head class="max-sm:hidden"><Button variant="ghost" size="sm" onclick={() => sortTasksBy("maxStackUsage")}>Stack Used {@const Icon = sortIcon("maxStackUsage")}<Icon class="ml-1 size-3" /></Button></Table.Head>
+								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("minFreeStack")}>Stack Free {@const Icon = sortIcon("minFreeStack")}<Icon class="ml-1 size-3" /></Button></Table.Head>
+								<Table.Head class="max-sm:hidden"><Button variant="ghost" size="sm" onclick={() => sortTasksBy("stackSize")}>Stack Size {@const Icon = sortIcon("stackSize")}<Icon class="ml-1 size-3" /></Button></Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
-						{#each espTaskTableData as serviceStatus (serviceStatus)}
+						{#each sortedTaskTableData as serviceStatus (serviceStatus.name)}
 							<Table.Row>
 								<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell
 								>
@@ -702,16 +892,30 @@
 			</div>
 		</Tabs.Content>
 		<Tabs.Content value="logs" class="overflow-hidden h-full p-4">
-			<div class="h-full rounded-md border bg-background p-3 overflow-auto font-mono text-xs">
+			<div class="flex h-full flex-col overflow-hidden rounded-md border bg-background font-mono text-xs">
+				<div class="flex shrink-0 items-center justify-between border-b px-3 py-2">
+					<span class="text-muted-foreground">{logConnectionState}</span>
+					<Button
+						variant="outline"
+						size="sm"
+						aria-pressed={autoScrollLogs}
+						title={autoScrollLogs ? "Pause automatic scrolling" : "Resume automatic scrolling"}
+						onclick={() => (autoScrollLogs = !autoScrollLogs)}
+					>
+						{#if autoScrollLogs}<ArrowDownToLine /> Auto-scroll{:else}<Pause /> Paused{/if}
+					</Button>
+				</div>
+				<div bind:this={logScrollElement} class="min-h-0 flex-1 overflow-auto p-3">
 				{#if logMessages.length === 0}
-					<div class="text-muted-foreground">{logConnectionState}</div>
+					<div class="text-muted-foreground">Waiting for system logs...</div>
 				{:else}
-					<div class="mb-2 text-muted-foreground">{logConnectionState}</div>
-					{#each logMessages as logLine}
-						<div class="whitespace-pre-wrap break-words">{logLine}</div>
+					{#each logMessages as logLine, index (`${index}-${logLine}`)}
+						<div class={`whitespace-pre-wrap break-words border-l-2 pl-2 ${logLevelClass(logLine)}`}>{logLine}</div>
 					{/each}
 				{/if}
+				</div>
 			</div>
 		</Tabs.Content>
 	</div>
 </Tabs.Root>
+{/if}
