@@ -12,7 +12,7 @@
 	import SemiautomaticControlTab from "./control-tab/semiautomatic-control-tab.d.svelte";
 	import SmartControlTab from "./control-tab/smart-control-tab.svelte";
 	import * as Card from "$lib/components/ui/card/index.js";
-	import { getWebSocket } from "$src/context/ws";
+	import { getMotorStatusState, getWebSocket } from "$src/context/ws";
 	import { toast } from "svelte-sonner";
 
 	let loading = $state(true);
@@ -69,6 +69,7 @@
 
 	let controlStates: ControlStates = $state(initialParams);
 	const ws = getWebSocket();
+	const motorStatusState = getMotorStatusState();
 
 	const onResetParams = async () => {
 		ws.send(
@@ -209,6 +210,19 @@
 							</div>
 						</Card.Content>
 					</Card.Root>
+				</div>
+				<div class="mx-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-y py-2 text-sm">
+					<span class="font-medium">Motors {motorStatusState.motors.length}/8</span>
+					{#if motorStatusState.motors.length > 0}
+						{#each motorStatusState.motors as motor (motor.motorIndex)}
+							<span class="flex items-center gap-2">
+								<span class={`size-2 rounded-full ${motor.status === "ok" ? "bg-success" : "bg-destructive"}`}></span>
+								Motor {motor.motorIndex + 1}: {motor.status}
+							</span>
+						{/each}
+					{:else}
+						<span class="text-muted-foreground">{motorStatusState.connectionStatus === "connected" ? "Waiting for status" : "Connecting"}</span>
+					{/if}
 				</div>
 				<div class="w-full flex flex-col">
 					<Tabs.Content value="manual">

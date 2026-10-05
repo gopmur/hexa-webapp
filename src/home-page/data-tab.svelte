@@ -21,20 +21,26 @@
 	let logScrollElement: HTMLDivElement | null = $state(null);
 	let autoScrollLogs = $state(true);
 	let { dashboard = false }: { dashboard?: boolean } = $props();
-	type TaskSortKey = "name" | "cpuUsage" | "maxStackUsagePercent" | "maxStackUsage" | "minFreeStack" | "stackSize";
-	let taskSortKey: TaskSortKey = $state("cpuUsage");
+	type TaskSortKey = "name" | "state" | "currentPriority" | "basePriority" | "cpuUsage" | "maxStackUsagePercent" | "maxStackUsage" | "minFreeStack" | "stackSize";
+	let taskSortKey: TaskSortKey = $state("name");
 	let taskSortDirection: "asc" | "desc" = $state("desc");
 
 	type ReceivedEspTaskDataType = {
 		cpuUsage: number;
 		minFreeStack: number;
 		stackSize?: number;
+		state?: string;
+		currentPriority?: number;
+		basePriority?: number;
 	};
 
 	type ReceivedStmTaskDataType = {
 		cpuUsage: number;
 		minFreeStack: number;
 		stackSize?: number;
+		state?: string;
+		currentPriority?: number;
+		basePriority?: number;
 	};
 
 	type ReceivedHeapDataType = {
@@ -52,7 +58,14 @@
 		};
 		stmCpuUsage?: Record<string, ReceivedStmTaskDataType>;
 		espCpuUsage?: Record<string, ReceivedEspTaskDataType>;
-		tasks?: Record<string, { cpu: number; minFreeStack: number; stackSize?: number }>;
+		tasks?: Record<string, {
+			cpu: number;
+			minFreeStack: number;
+			stackSize?: number;
+			state?: string;
+			currentPriority?: number;
+			basePriority?: number;
+		}>;
 		motor?: {
 			leftPosition: number;
 			rightPosition: number;
@@ -77,6 +90,9 @@
 		maxStackUsage?: number;
 		maxStackUsagePercent?: number;
 		stackSize?: number;
+		state?: string;
+		currentPriority?: number;
+		basePriority?: number;
 		absentCounter: number;
 	};
 
@@ -127,6 +143,8 @@
 	const TASK_MISSING_GRACE_PACKETS = 50;
 	const sortedTaskTableData = $derived.by(() =>
 		[...espTaskTableData].sort((left, right) => {
+			if (left.name === "total") return right.name === "total" ? 0 : -1;
+			if (right.name === "total") return 1;
 			const leftValue = left[taskSortKey];
 			const rightValue = right[taskSortKey];
 			if (leftValue === undefined || rightValue === undefined) {
@@ -238,11 +256,17 @@
 						stackSizes[name] && numberIsValid(maxStackUsage)
 							? (maxStackUsage / stackSizes[name]) * 100
 							: undefined,
+					state: receivedTaskData[name].state,
+					currentPriority: receivedTaskData[name].currentPriority,
+					basePriority: receivedTaskData[name].basePriority,
 					absentCounter: 0,
 				});
 			} else {
 				serviceStatus.name = name;
 				serviceStatus.cpuUsage = receivedTaskData[name].cpuUsage;
+				serviceStatus.state = receivedTaskData[name].state;
+				serviceStatus.currentPriority = receivedTaskData[name].currentPriority;
+				serviceStatus.basePriority = receivedTaskData[name].basePriority;
 				serviceStatus.maxStackUsage = numberIsValid(maxStackUsage)
 					? maxStackUsage * 4
 					: undefined;
@@ -373,7 +397,14 @@
 			}
 			const rootTaskRecords: Record<
 				string,
-				{ cpu: number; minFreeStack: number; stackSize?: number }
+				{
+					cpu: number;
+					minFreeStack: number;
+					stackSize?: number;
+					state?: string;
+					currentPriority?: number;
+					basePriority?: number;
+				}
 			> = {};
 			for (const [name, task] of Object.entries(data)) {
 				if (
@@ -393,10 +424,20 @@
 							"stackSize" in task && typeof task.stackSize === "number"
 								? task.stackSize
 								: undefined,
+						state: "state" in task && typeof task.state === "string" ? task.state : undefined,
+						currentPriority:
+							"currentPriority" in task && typeof task.currentPriority === "number"
+								? task.currentPriority
+								: undefined,
+						basePriority:
+							"basePriority" in task && typeof task.basePriority === "number"
+								? task.basePriority
+								: undefined,
 					};
 				}
 			}
 			const taskRecords = data.tasks ?? rootTaskRecords;
+			const hasEspTaskData = data.tasks !== undefined || Object.keys(rootTaskRecords).length > 0;
 			const normalizedTasks = Object.fromEntries(
 				Object.entries(taskRecords)
 					.filter(([name]) => !name.startsWith("IDLE"))
@@ -406,6 +447,9 @@
 							cpuUsage: task.cpu,
 							minFreeStack: task.minFreeStack,
 							stackSize: task.stackSize,
+							state: task.state,
+							currentPriority: task.currentPriority,
+							basePriority: task.basePriority,
 						},
 					]),
 			) as Record<string, ReceivedEspTaskDataType>;
@@ -465,7 +509,7 @@
 					stmTaskStackSizes,
 				);
 			}
-			if (espTaskData) {
+			if (hasEspTaskData) {
 				for (const task_name in espTaskData) {
 					if (espTaskData[task_name].stackSize) {
 						espTaskStackSizes[task_name] = espTaskData[task_name].stackSize;
@@ -606,6 +650,8 @@
 						<Table.Header>
 							<Table.Row>
 								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("name")}>Task {#key sortIcon("name")} {@const Icon = sortIcon("name")}<Icon class="ml-1 size-3" />{/key}</Button></Table.Head>
+								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("state")}>Status {@const Icon = sortIcon("state")}<Icon class="ml-1 size-3" /></Button></Table.Head>
+								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("currentPriority")}>Priority {@const Icon = sortIcon("currentPriority")}<Icon class="ml-1 size-3" /></Button></Table.Head>
 								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("cpuUsage")}>CPU {@const Icon = sortIcon("cpuUsage")}<Icon class="ml-1 size-3" /></Button></Table.Head>
 								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("maxStackUsagePercent")}>Stack % {@const Icon = sortIcon("maxStackUsagePercent")}<Icon class="ml-1 size-3" /></Button></Table.Head>
 								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("maxStackUsage")}>Used {@const Icon = sortIcon("maxStackUsage")}<Icon class="ml-1 size-3" /></Button></Table.Head>
@@ -616,6 +662,8 @@
 							{#each sortedTaskTableData as task (task.name)}
 								<Table.Row>
 									<Table.Cell class="font-medium">{task.name}</Table.Cell>
+									<Table.Cell>{task.state ?? "-"}</Table.Cell>
+									<Table.Cell>{task.currentPriority ?? "-"}/{task.basePriority ?? "-"}</Table.Cell>
 									<Table.Cell
 										style={`background-color: oklch(0.795 0.184 86.047 / ${percentToLightness(task.cpuUsage)});`}
 									>
@@ -742,6 +790,8 @@
 					<Table.Header>
 						<Table.Row>
 								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("name")}>Service {@const Icon = sortIcon("name")}<Icon class="ml-1 size-3" /></Button></Table.Head>
+							<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("state")}>Status {@const Icon = sortIcon("state")}<Icon class="ml-1 size-3" /></Button></Table.Head>
+							<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("currentPriority")}>Priority (current/base) {@const Icon = sortIcon("currentPriority")}<Icon class="ml-1 size-3" /></Button></Table.Head>
 								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("cpuUsage")}>CPU Usage {@const Icon = sortIcon("cpuUsage")}<Icon class="ml-1 size-3" /></Button></Table.Head>
 								<Table.Head><Button variant="ghost" size="sm" onclick={() => sortTasksBy("maxStackUsagePercent")}>Stack (%) {@const Icon = sortIcon("maxStackUsagePercent")}<Icon class="ml-1 size-3" /></Button></Table.Head>
 								<Table.Head class="max-sm:hidden"><Button variant="ghost" size="sm" onclick={() => sortTasksBy("maxStackUsage")}>Stack Used {@const Icon = sortIcon("maxStackUsage")}<Icon class="ml-1 size-3" /></Button></Table.Head>
@@ -754,6 +804,8 @@
 							<Table.Row>
 								<Table.Cell class="font-medium">{serviceStatus.name}</Table.Cell
 								>
+								<Table.Cell>{serviceStatus.state ?? "-"}</Table.Cell>
+								<Table.Cell>{serviceStatus.currentPriority ?? "-"}/{serviceStatus.basePriority ?? "-"}</Table.Cell>
 								<Table.Cell
 									style={`background-color: oklch(0.795 0.184 86.047/ ${percentToLightness(serviceStatus.cpuUsage)});`}
 									>{serviceStatus.cpuUsage?.toFixed(1)}%</Table.Cell
