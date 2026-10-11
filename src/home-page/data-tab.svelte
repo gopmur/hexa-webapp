@@ -9,7 +9,6 @@
 	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
 	import ChartLegend from "./data-tab/chart-legend.svelte";
 	import MotorChartCard from "./data-tab/motor-chart-card.svelte";
-	import Separator from "$lib/components/ui/separator/separator.svelte";
 	import Button from "$lib/components/ui/button/button.svelte";
 	import { ArrowDownToLine, Pause } from "lucide-svelte";
 	import * as Card from "$lib/components/ui/card/index.js";
@@ -87,6 +86,10 @@
 		};
 		feedbacks?: MotorFeedback[];
 		espHeap?: ReceivedHeapDataType;
+		free?: number;
+		minFree?: number;
+		totalSize?: number;
+		largestBlock?: number;
 		microseconds: number;
 		x?: number;
 		y?: number;
@@ -130,7 +133,7 @@
 
 	type StackSizeResponse = Record<string, number>;
 
-	type DataTab =  "esp-task-data" | "imu" | "motor" | "logs";
+	type DataTab =  "esp-task-data" | "imu" | "motor" | "heap" | "logs";
 
 	let stmTaskTableData: TaskTableData[] = $state([]);
 	let espTaskTableData: TaskTableData[] = $state([]);
@@ -150,6 +153,8 @@
 	let stmStackSizesLoading = true;
 	let timeOffset = 0;
 	let setTimeOffset = true;
+	let motorTimeOffset: number | undefined;
+	let lastMotorTimestamp: number | undefined;
 	const TASK_MISSING_GRACE_PACKETS = 50;
 	const sortedTaskTableData = $derived.by(() =>
 		[...espTaskTableData].sort((left, right) => {
@@ -190,6 +195,7 @@
 	});
 
 	const MAX_T_SPAN = 5_000_000;
+	const MOTOR_CLOCK_RESET_THRESHOLD = 1_000_000;
 
 	const appendDataPointToChartData = (
 		dataPoint: object,
@@ -198,6 +204,7 @@
 	) => {
 		if (
 			!Number.isFinite(t) ||
+			(chartData.at(-1)?.t !== undefined && t <= chartData.at(-1)!.t) ||
 			!Object.values(dataPoint).every(
 				(value) => typeof value === "number" && Number.isFinite(value),
 			)
@@ -504,44 +511,70 @@
 								},
 							]
 						: undefined);
-			const heapData = data.espHeap;
+			const heapData = data.espHeap ??
+				(typeof data.free === "number" &&
+					typeof data.minFree === "number" &&
+					typeof data.totalSize === "number" &&
+					typeof data.largestBlock === "number"
+					? {
+							free: data.free,
+							minFree: data.minFree,
+							totalSize: data.totalSize,
+							largestBlock: data.largestBlock,
+						}
+					: undefined);
 			if (setTimeOffset) {
 				timeOffset = data.microseconds;
 				setTimeOffset = false;
 			}
 			const t = data.microseconds - timeOffset;
 			if (motorFeedbacks) {
-				motorCount = motorFeedbacks.length;
-				const positionValues = Object.fromEntries(
-					motorFeedbacks.map((feedback, index) => [
-						`motor${index}`,
-						radToDeg(feedback.position),
-					]),
-				);
-				const velocityValues = Object.fromEntries(
-					motorFeedbacks.map((feedback, index) => [
-						`motor${index}`,
-						radToDeg(feedback.velocity),
-					]),
-				);
-				const torqueValues = Object.fromEntries(
-					motorFeedbacks.map((feedback, index) => [`motor${index}`, feedback.torque]),
-				);
-				motorPositionChartData = appendDataPointToChartData(
-					positionValues,
-					t,
-					motorPositionChartData,
-				) as MotorChartData[];
-				motorVelocityChartData = appendDataPointToChartData(
-					velocityValues,
-					t,
-					motorVelocityChartData,
-				) as MotorChartData[];
-				motorTorqueChartData = appendDataPointToChartData(
-					torqueValues,
-					t,
-					motorTorqueChartData,
-				) as MotorChartData[];
+				const timestampRegressed =
+					lastMotorTimestamp !== undefined &&
+					data.microseconds <= lastMotorTimestamp;
+				const motorClockReset =
+					lastMotorTimestamp !== undefined &&
+					lastMotorTimestamp - data.microseconds > MOTOR_CLOCK_RESET_THRESHOLD;
+				if (!timestampRegressed || motorClockReset) {
+					if (motorClockReset) {
+						const lastChartTime = motorPositionChartData.at(-1)?.t ?? 0;
+						motorTimeOffset = data.microseconds - lastChartTime - 1;
+					}
+					lastMotorTimestamp = data.microseconds;
+					motorTimeOffset ??= data.microseconds;
+					const motorTime = data.microseconds - motorTimeOffset;
+					motorCount = motorFeedbacks.length;
+					const positionValues = Object.fromEntries(
+						motorFeedbacks.map((feedback, index) => [
+							`motor${index}`,
+							radToDeg(feedback.position),
+						]),
+					);
+					const velocityValues = Object.fromEntries(
+						motorFeedbacks.map((feedback, index) => [
+							`motor${index}`,
+							radToDeg(feedback.velocity),
+						]),
+					);
+					const torqueValues = Object.fromEntries(
+						motorFeedbacks.map((feedback, index) => [`motor${index}`, feedback.torque]),
+					);
+					motorPositionChartData = appendDataPointToChartData(
+						positionValues,
+						motorTime,
+						motorPositionChartData,
+					) as MotorChartData[];
+					motorVelocityChartData = appendDataPointToChartData(
+						velocityValues,
+						motorTime,
+						motorVelocityChartData,
+					) as MotorChartData[];
+					motorTorqueChartData = appendDataPointToChartData(
+						torqueValues,
+						motorTime,
+						motorTorqueChartData,
+					) as MotorChartData[];
+				}
 			}
 			if (heapData)
 				heapChartData = appendDataPointToChartData(
@@ -695,6 +728,8 @@
 		motorVelocityChartData = [];
 		motorTorqueChartData = [];
 		motorCount = 0;
+		motorTimeOffset = undefined;
+		lastMotorTimestamp = undefined;
 		heapChartData = [];
 		timeOffset = 0;
 		setTimeOffset = true;
@@ -707,6 +742,7 @@
 			connectDataStream("tasks");
 			connectDataStream("imu");
 			connectDataStream("motor");
+			connectDataStream("heap");
 			connectLogStream();
 		} else {
 			connectDataStream();
@@ -819,6 +855,38 @@
 		<MotorChartCard title="Motor position" data={motorPositionChartData} series={motorSeries()} unit=" deg" domain={[-90, 180]} />
 		<MotorChartCard title="Motor velocity" data={motorVelocityChartData} series={motorSeries()} unit=" deg/s" domain={[-180, 180]} />
 		<MotorChartCard title="Motor torque" data={motorTorqueChartData} series={motorSeries()} unit=" N.m" domain={[-16, 16]} />
+		<Card.Root class="flex min-h-0 min-w-0 flex-col gap-0 rounded-lg py-0">
+			<header class="shrink-0 border-b px-3 py-2">
+				<h3 class="text-xs font-semibold">Heap memory</h3>
+			</header>
+			<ChartLegend
+				series={heapSeries}
+				values={heapChartData.at(-1)
+					? Object.fromEntries(
+							Object.entries(heapChartData.at(-1) ?? {})
+								.filter(([key]) => key !== "t")
+								.map(([key, value]) => [key, formatSize(Number(value))]),
+						)
+					: undefined}
+			/>
+			{#if heapChartData.length > 0}
+				<Chart.Container class="min-h-0 flex-1 aspect-auto" config={chartConfig}>
+					<LineChart
+						data={heapChartData}
+						x="t"
+						axis="x"
+						series={heapSeries}
+						props={{
+							highlight: { points: false },
+							xAxis: { format: (value) => String(value / 1_000_000) },
+						}}
+						xDomain={[heapChartData[0].t, heapChartData[0].t + MAX_T_SPAN]}
+					/>
+				</Chart.Container>
+			{:else}
+				<p class="p-3 text-xs text-muted-foreground">Waiting for heap telemetry...</p>
+			{/if}
+		</Card.Root>
 		<Card.Root class="col-span-full flex min-h-0 min-w-0 flex-col gap-0 rounded-lg py-0">
 			<header class="flex shrink-0 items-center justify-between border-b px-3 py-2">
 				<h3 class="text-xs font-semibold">System log</h3>
@@ -858,6 +926,7 @@
 		>
 		<Tabs.Trigger class="flex flex-col" value="imu">IMU</Tabs.Trigger>
 		<Tabs.Trigger class="flex flex-col" value="motor">Motor</Tabs.Trigger>
+		<Tabs.Trigger class="flex flex-col" value="heap">Heap</Tabs.Trigger>
 		<Tabs.Trigger class="flex flex-col" value="logs">Logs</Tabs.Trigger>
 	</Tabs.List>
 
@@ -912,39 +981,6 @@
 						{/each}
 					</Table.Body>
 				</Table.Root>
-				<Separator />
-				<div class="p-4">
-					<ChartLegend
-						series={heapSeries}
-						values={heapChartData?.at(-1)
-							? Object.fromEntries(
-									Object.entries(heapChartData.at(-1) ?? {})
-										.filter(([k]) => k !== "t")
-										.map(([k, v]) => [k, formatSize(Number(v))]),
-								)
-							: undefined}
-					/>
-					{#if heapChartData.length > 0}
-					<Chart.Container config={chartConfig}>
-						<LineChart
-							data={heapChartData}
-							x="t"
-							axis="x"
-							series={heapSeries}
-							props={{
-								highlight: { points: false },
-								xAxis: {
-									format: (d) => String(d / 1_000_000),
-								},
-							}}
-							xDomain={[
-								heapChartData.at(0)?.t ?? 0,
-								(heapChartData.at(0)?.t ?? 0) + MAX_T_SPAN,
-							]}
-						></LineChart>
-					</Chart.Container>
-					{/if}
-				</div>
 			</div>
 		</Tabs.Content>
 		<Tabs.Content
@@ -1020,6 +1056,40 @@
 				<MotorChartCard title="Motor velocity" data={motorVelocityChartData} series={motorSeries()} unit=" deg/s" domain={[-180, 180]} />
 				<MotorChartCard title="Motor torque" data={motorTorqueChartData} series={motorSeries()} unit=" N.m" domain={[-16, 16]} />
 			</div>
+		</Tabs.Content>
+		<Tabs.Content value="heap" class="overflow-y-auto flex-1 p-4">
+			<Card.Root class="flex min-h-64 min-w-0 flex-col gap-0 rounded-lg py-0">
+				<header class="shrink-0 border-b px-3 py-2">
+					<h3 class="text-xs font-semibold">Heap memory</h3>
+				</header>
+				<ChartLegend
+					series={heapSeries}
+					values={heapChartData.at(-1)
+						? Object.fromEntries(
+								Object.entries(heapChartData.at(-1) ?? {})
+									.filter(([key]) => key !== "t")
+									.map(([key, value]) => [key, formatSize(Number(value))]),
+							)
+						: undefined}
+				/>
+				{#if heapChartData.length > 0}
+					<Chart.Container class="min-h-0 flex-1" config={chartConfig}>
+						<LineChart
+							data={heapChartData}
+							x="t"
+							axis="x"
+							series={heapSeries}
+							props={{
+								highlight: { points: false },
+								xAxis: { format: (value) => String(value / 1_000_000) },
+							}}
+							xDomain={[heapChartData[0].t, heapChartData[0].t + MAX_T_SPAN]}
+						/>
+					</Chart.Container>
+				{:else}
+					<p class="p-3 text-sm text-muted-foreground">Waiting for heap telemetry...</p>
+				{/if}
+			</Card.Root>
 		</Tabs.Content>
 		<Tabs.Content value="logs" class="overflow-hidden h-full p-4">
 			<div class="flex h-full flex-col overflow-hidden rounded-md border bg-background font-mono text-xs">

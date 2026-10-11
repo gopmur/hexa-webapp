@@ -5,12 +5,15 @@
 #include "custom_drivers/motor.hpp"
 #include "esp_err.h"
 #include "esp_http_server.h"
+#include "esp_system.h"
 #include "esp_timer.h"
+#include "helper/ds/period.hpp"
 #include "helper/formats.hpp"
 #include "http.hpp"
 #include "jayson.hpp"
 #include "jaythread/ipc/mutex.hpp"
 #include "jaythread/sync.hpp"
+#include "sdkconfig.h"
 #include "system_logger.hpp"
 #include "tasks/imu.hpp"
 #include "tasks/monitor.hpp"
@@ -162,11 +165,24 @@ void WebSocketTask::send_to_sys_log_connections(const char* data) {
   }
 }
 
+void WebSocketTask::fill_heap_data_json(JsonObject* heap_data_json) {
+  add_time_stamp(heap_data_json);
+  auto free = esp_get_free_heap_size();
+  auto largest_block = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+  auto min_free = esp_get_minimum_free_heap_size();
+  auto total_size = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
+  heap_data_json->set("free", free);
+  heap_data_json->set("largestBlock", largest_block);
+  heap_data_json->set("minFree", min_free);
+  heap_data_json->set("totalSize", total_size);
+}
+
 void WebSocketTask::main() {
+  auto frequency = Period::from_hz(CONFIG_HEXA_TASKS_WS_FREQ_HZ);
   JsonObject task_status_json;
   JsonObject imu_data_json;
   JsonObject motor_data_json;
-  JsonObject esp_heap;
+  JsonObject heap_json;
   JsonObject ota_progress;
 
   while (true) {
@@ -183,7 +199,7 @@ void WebSocketTask::main() {
       task_status_json = JsonObject();
       imu_data_json = JsonObject();
       motor_data_json = JsonObject();
-      esp_heap = JsonObject();
+      heap_json = JsonObject();
       ota_progress = JsonObject();
       auto connections = get_connections();
       esp_err_t ret = ESP_FAIL;
@@ -203,6 +219,13 @@ void WebSocketTask::main() {
             ret = send_to_connection(connection.fd, &motor_data_json);
             break;
           }
+          case WebSocketConnectionType::HEAP: {
+            if (heap_json.is_empty()) {
+              fill_heap_data_json(&heap_json);
+            }
+            ret = send_to_connection(connection.fd, &heap_json);
+            break;
+          }
           default:
             ret = ESP_OK;
             break;
@@ -218,7 +241,7 @@ void WebSocketTask::main() {
         send_to_sys_log_connections(sys_log);
         delete sys_log;
       };
-      Sync::sleep(10);
+      Sync::sleep(frequency.ms());
     }
   }
 }
