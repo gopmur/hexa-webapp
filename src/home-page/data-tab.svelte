@@ -58,6 +58,12 @@
 
 	type ImuPayload = ImuVector | { accel?: ImuVector; gyro?: ImuVector };
 
+	type MotorFeedback = {
+		position: number;
+		velocity: number;
+		torque: number;
+	};
+
 	type WsData = {
 		imu?: ImuPayload;
 		accel?: ImuVector;
@@ -78,6 +84,7 @@
 			leftVelocity?: number;
 			rightVelocity?: number;
 		};
+		feedbacks?: MotorFeedback[];
 		espHeap?: ReceivedHeapDataType;
 		microseconds: number;
 		x?: number;
@@ -467,8 +474,21 @@
 					? { x: data.x ?? 0, y: data.y ?? 0, z: data.z ?? 0 }
 					: undefined);
 			const accelData = data.accel ?? nestedImuData?.accel;
+			const leftMotorFeedback = data.feedbacks?.[0];
+			const rightMotorFeedback = data.feedbacks?.[1];
+			const feedbackMotorData =
+				leftMotorFeedback &&
+				rightMotorFeedback &&
+				Number.isFinite(leftMotorFeedback.position) &&
+				Number.isFinite(rightMotorFeedback.position)
+					? {
+							leftPosition: leftMotorFeedback.position,
+							rightPosition: rightMotorFeedback.position,
+						}
+					: undefined;
 			const motorData =
 				data.motor ??
+				feedbackMotorData ??
 				((data.position0 !== undefined || data.position1 !== undefined)
 					? {
 							leftPosition: data.position0 ?? 0,

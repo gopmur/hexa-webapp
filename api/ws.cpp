@@ -43,12 +43,15 @@ void WebSocketTask::fill_imu_data_json(JsonObject* imu_data_json) {
 
 void WebSocketTask::fill_motor_data_json(JsonObject* motor_data_json) {
   add_time_stamp(motor_data_json);
+  auto feedbacks = JsonArray();
+  auto feedback = JsonObject();
   for (int i = 0; i < motor_task->motor_count; i++) {
-    auto position_key = std::format("position{}", i);
-    auto velocity_key = std::format("velocity{}", i);
-    motor_data_json->set(position_key.c_str(), motor_task->get_position(i));
-    motor_data_json->set(velocity_key.c_str(), motor_task->get_velocity(i));
+    feedback.set("position", motor_task->get_position(i));
+    feedback.set("velocity", motor_task->get_velocity(i));
+    feedback.set("torque", motor_task->get_torque(i));
+    feedbacks.append_object(&feedback);
   }
+  motor_data_json->set("feedbacks", &feedbacks);
 }
 
 JsonObject WebSocketTask::fill_task_status_json(std::vector<ThreadStatus>& thread_status) {
