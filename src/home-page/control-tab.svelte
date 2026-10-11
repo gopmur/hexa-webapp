@@ -20,6 +20,19 @@
 	const initialParams: ControlStates = {
 		running: false,
 		mode: "manual",
+		controlConfigs: {
+			automatic: {
+				left: { velocityThreshold: 0 },
+				right: { velocityThreshold: 0 },
+				angleThreshold: 0,
+			},
+			semiautomatic: {
+				startAssistAngle: 0,
+				stopAssistAngle: 0,
+				epsilon: 0,
+			},
+			smart: { velocityThreshold: 0 },
+		},
 		controlParams: {
 			manual: {
 				right: {
@@ -31,20 +44,16 @@
 			},
 			automatic: {
 				right: {
-					velocityThreshold: 0,
 					torque: 0,
 					timeout: 0,
 				},
 				left: {
-					velocityThreshold: 0,
 					torque: 0,
 					timeout: 0,
 				},
 			},
 			semiautomatic: {
 				weakLeg: "left",
-				startAssistAngle: 0,
-				stopAssistAngle: 0,
 				right: {
 					torque: 0,
 					delay: 0,
@@ -118,22 +127,57 @@
 		if (!response.ok) {
 			throw new Error();
 		}
-		const responseData: ControlStates = await response.json();
-		responseData.mode =
-			responseData.mode === "semi-automatic" ? "semiautomatic" : responseData.mode;
-		responseData.controlParams.automatic.left.velocityThreshold = radToDeg(
-			responseData.controlParams.automatic.left.velocityThreshold,
-		);
-		responseData.controlParams.automatic.right.velocityThreshold = radToDeg(
-			responseData.controlParams.automatic.right.velocityThreshold,
-		);
-		responseData.controlParams.semiautomatic.startAssistAngle = radToDeg(
-			responseData.controlParams.semiautomatic.startAssistAngle,
-		);
-		responseData.controlParams.semiautomatic.stopAssistAngle = radToDeg(
-			responseData.controlParams.semiautomatic.stopAssistAngle,
-		);
-		return responseData;
+		const responseData = (await response.json()) as {
+			running: boolean;
+			mode: ControlStates["mode"];
+			controlParams: {
+				manual: ControlStates["controlParams"]["manual"];
+				automatic: ControlStates["controlParams"]["automatic"] & {
+					left: { velocityThreshold: number };
+					right: { velocityThreshold: number };
+					angleThreshold?: number;
+				};
+				semiautomatic: ControlStates["controlParams"]["semiautomatic"] &
+					ControlStates["controlConfigs"]["semiautomatic"];
+				smart: ControlStates["controlParams"]["smart"] & {
+					velocityThreshold?: number;
+				};
+			};
+		};
+		const apiParams = responseData.controlParams;
+		return {
+			running: responseData.running,
+			mode: responseData.mode === "semi-automatic" ? "semiautomatic" : responseData.mode,
+			controlParams: {
+				manual: apiParams.manual,
+				automatic: {
+					left: { torque: apiParams.automatic.left.torque, timeout: apiParams.automatic.left.timeout },
+					right: { torque: apiParams.automatic.right.torque, timeout: apiParams.automatic.right.timeout },
+				},
+				semiautomatic: {
+					weakLeg: apiParams.semiautomatic.weakLeg,
+					left: apiParams.semiautomatic.left,
+					right: apiParams.semiautomatic.right,
+				},
+				smart: {
+					left: apiParams.smart.left,
+					right: apiParams.smart.right,
+				},
+			},
+			controlConfigs: {
+				automatic: {
+					left: { velocityThreshold: radToDeg(apiParams.automatic.left.velocityThreshold) },
+					right: { velocityThreshold: radToDeg(apiParams.automatic.right.velocityThreshold) },
+					angleThreshold: radToDeg(apiParams.automatic.angleThreshold ?? 0),
+				},
+				semiautomatic: {
+					startAssistAngle: radToDeg(apiParams.semiautomatic.startAssistAngle),
+					stopAssistAngle: radToDeg(apiParams.semiautomatic.stopAssistAngle),
+					epsilon: radToDeg(apiParams.semiautomatic.epsilon),
+				},
+				smart: { velocityThreshold: radToDeg(apiParams.smart.velocityThreshold ?? 0) },
+			},
+		};
 	};
 
 	const loadStates = async () => {
@@ -234,16 +278,19 @@
 					<Tabs.Content value="automatic">
 						<AutomaticControlTab
 							bind:controlParams={controlStates.controlParams.automatic}
+							bind:controlConfigs={controlStates.controlConfigs.automatic}
 						/>
 					</Tabs.Content>
 					<Tabs.Content value="semiautomatic" class="flex-0">
 						<SemiautomaticControlTab
 							bind:controlParams={controlStates.controlParams.semiautomatic}
+							bind:controlConfigs={controlStates.controlConfigs.semiautomatic}
 						/>
 					</Tabs.Content>
 					<Tabs.Content value="smart">
 						<SmartControlTab
 							bind:controlParams={controlStates.controlParams.smart}
+							bind:controlConfigs={controlStates.controlConfigs.smart}
 						/>
 					</Tabs.Content>
 				</div>

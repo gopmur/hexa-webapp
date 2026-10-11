@@ -15,7 +15,6 @@ export type ManualControlParams = {
 };
 
 export type AutomaticControlParamsLeg = {
-	velocityThreshold: number;
 	torque: number;
 	timeout: number;
 };
@@ -33,8 +32,6 @@ export type SemiautomaticControlParamsLeg = {
 
 export type SemiautomaticControlParams = {
 	weakLeg: "left" | "right";
-	startAssistAngle: number;
-	stopAssistAngle: number;
 	left: SemiautomaticControlParamsLeg;
 	right: SemiautomaticControlParamsLeg;
 };
@@ -48,6 +45,22 @@ export type SmartControlParams = {
 	right: SmartControlParamsLeg;
 };
 
+export type AutomaticControlConfigs = {
+	left: { velocityThreshold: number };
+	right: { velocityThreshold: number };
+	angleThreshold: number;
+};
+
+export type SemiautomaticControlConfigs = {
+	startAssistAngle: number;
+	stopAssistAngle: number;
+	epsilon: number;
+};
+
+export type SmartControlConfigs = {
+	velocityThreshold: number;
+};
+
 export type ControlParams = {
 	manual: ManualControlParams;
 	automatic: AutomaticControlParams;
@@ -55,8 +68,15 @@ export type ControlParams = {
 	smart: SmartControlParams;
 };
 
+export type ControlConfigs = {
+	automatic: AutomaticControlConfigs;
+	semiautomatic: SemiautomaticControlConfigs;
+	smart: SmartControlConfigs;
+};
+
 export type ControlStates = {
 	running: boolean;
 	mode: RunningMode;
 	controlParams: ControlParams;
+	controlConfigs: ControlConfigs;
 };

@@ -1,15 +1,17 @@
 <script lang="ts">
-	import { API_ADDRESS } from "$src/config.sample";
+	import { API_ADDRESS } from "$src/config";
 	import type { SemiautomaticControlTabProps } from "./semiautomatic-control-tab";
 	import Button from "$lib/components/ui/button/button.svelte";
 	import Slider from "$lib/components/ui/slider/slider.svelte";
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { LinkIcon } from "lucide-svelte";
 	import Switch from "$lib/components/ui/switch/switch.svelte";
-	import { settings } from "$src/context/settings";
 	import { degToRad } from "$lib/utils";
 
-	let { controlParams = $bindable() }: SemiautomaticControlTabProps = $props();
+	let {
+		controlParams = $bindable(),
+		controlConfigs = $bindable(),
+	}: SemiautomaticControlTabProps = $props();
 
 	let leftLinked = $state(false);
 	let rightLinked = $state(false);
@@ -92,8 +94,8 @@
 	};
 
 	const onAssistAngleChange = ([a, b]: number[]) => {
-		controlParams.startAssistAngle = Math.min(a, b);
-		controlParams.stopAssistAngle = Math.max(a, b);
+		controlConfigs.startAssistAngle = Math.min(a, b);
+		controlConfigs.stopAssistAngle = Math.max(a, b);
 	};
 
 	const onParamCommit = async () => {
@@ -101,8 +103,6 @@
 			method: "PUT",
 			body: JSON.stringify({
 				weakLeg: controlParams.weakLeg,
-				startAssistAngle: degToRad(controlParams.startAssistAngle),
-				stopAssistAngle: degToRad(controlParams.stopAssistAngle),
 				left: {
 					timeout: controlParams.left.timeout,
 					torque: controlParams.left.torque,
@@ -116,34 +116,32 @@
 			}),
 		});
 	};
+
+	const onConfigCommit = async () => {
+		await fetch(`${API_ADDRESS}/api/control/semiautomatic/configs`, {
+			method: "PUT",
+			body: JSON.stringify({
+				startAssistAngle: degToRad(controlConfigs.startAssistAngle),
+				stopAssistAngle: degToRad(controlConfigs.stopAssistAngle),
+				epsilon: degToRad(controlConfigs.epsilon),
+			}),
+		});
+	};
 </script>
 
 <div class="w-full flex flex-col p-4 gap-4">
-	{#if $settings.advanced}
-		<Card.Root class="w-full">
-			<Card.Header>
-				<Card.Title class="flex items-center gap-2">Assist Angles</Card.Title>
-			</Card.Header>
-			<Card.Content class="flex flex-col gap-4">
-				<div>
-					start: {controlParams.startAssistAngle} deg
-					stop: {controlParams.stopAssistAngle} deg
-				</div>
-				<Slider
-					min={0}
-					max={190}
-					step={1}
-					type="multiple"
-					onValueChange={onAssistAngleChange}
-					onValueCommit={onParamCommit}
-					value={[
-						controlParams.startAssistAngle,
-						controlParams.stopAssistAngle,
-					]}
-				/>
-			</Card.Content>
-		</Card.Root>
-	{/if}
+	<Card.Root class="w-full">
+		<Card.Header><Card.Title>Configs</Card.Title></Card.Header>
+		<Card.Content class="flex flex-col gap-4">
+			<div>Assist angles: {controlConfigs.startAssistAngle} deg to {controlConfigs.stopAssistAngle} deg</div>
+			<Slider min={0} max={190} step={1} type="multiple" onValueChange={onAssistAngleChange} onValueCommit={onConfigCommit} value={[controlConfigs.startAssistAngle, controlConfigs.stopAssistAngle]} />
+			<div class="flex flex-col gap-2">
+				<div>Epsilon: {controlConfigs.epsilon} deg</div>
+				<Slider type="single" min={0} max={30} step={0.1} bind:value={controlConfigs.epsilon} onValueCommit={onConfigCommit} />
+			</div>
+		</Card.Content>
+	</Card.Root>
+	<h3 class="text-sm font-semibold">Params</h3>
 	<div class="w-full flex gap-4">
 		<Card.Root class="w-full">
 			<Card.Header>

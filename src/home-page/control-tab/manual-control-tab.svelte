@@ -31,7 +31,9 @@
 	};
 </script>
 
-<div class="w-full flex gap-4 p-4">
+<div class="w-full flex flex-col gap-4 p-4">
+	<h3 class="text-sm font-semibold">Params</h3>
+	<div class="w-full flex gap-4">
 	<Card.Root class="w-full">
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">Left Leg</Card.Title>
@@ -64,4 +66,5 @@
 			/>
 		</Card.Content>
 	</Card.Root>
+	</div>
 </div>

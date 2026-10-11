@@ -6,10 +6,12 @@
 	import { API_ADDRESS } from "$src/config";
 	import { LinkIcon } from "lucide-svelte";
 	import type { AutomaticControlTabProps } from "./automatic-control-tab";
-	import { settings } from "$src/context/settings";
 	import { degToRad } from "$lib/utils";
 
-	let { controlParams = $bindable() }: AutomaticControlTabProps = $props();
+	let {
+		controlParams = $bindable(),
+		controlConfigs = $bindable(),
+	}: AutomaticControlTabProps = $props();
 
 	let leftLinked = $state(false);
 	let rightLinked = $state(false);
@@ -22,8 +24,6 @@
 		if (leftLinked) {
 			controlParams.left.timeout = controlParams.right.timeout;
 			controlParams.left.torque = controlParams.right.torque;
-			controlParams.left.velocityThreshold =
-				controlParams.right.velocityThreshold;
 		}
 		onParamCommit();
 	};
@@ -36,8 +36,6 @@
 		if (rightLinked) {
 			controlParams.right.timeout = controlParams.left.timeout;
 			controlParams.right.torque = controlParams.left.torque;
-			controlParams.right.velocityThreshold =
-				controlParams.left.velocityThreshold;
 		}
 		onParamCommit();
 	};
@@ -55,10 +53,7 @@
 		}
 	};
 	const onLeftVelocityThresholdChanged = (val: number) => {
-		controlParams.left.velocityThreshold = val;
-		if (rightLinked) {
-			controlParams.right.velocityThreshold = val;
-		}
+		controlConfigs.left.velocityThreshold = val;
 	};
 	const onRightTimeoutChanged = (val: number) => {
 		controlParams.right.timeout = val;
@@ -74,10 +69,7 @@
 	};
 
 	const onRightVelocityThresholdChanged = (val: number) => {
-		controlParams.right.velocityThreshold = val;
-		if (leftLinked) {
-			controlParams.left.velocityThreshold = val;
-		}
+		controlConfigs.right.velocityThreshold = val;
 	};
 
 	const onParamCommit = async () => {
@@ -87,23 +79,51 @@
 				left: {
 					timeout: controlParams.left.timeout,
 					torque: controlParams.left.torque,
-					velocityThreshold: degToRad(controlParams.left.velocityThreshold),
 				},
 				right: {
 					timeout: controlParams.right.timeout,
 					torque: controlParams.right.torque,
-					velocityThreshold: degToRad(controlParams.right.velocityThreshold),
 				},
+			}),
+		});
+	};
+
+	const onConfigCommit = async () => {
+		await fetch(`${API_ADDRESS}/api/control/automatic/configs`, {
+			method: "PUT",
+			body: JSON.stringify({
+				left: { velocityThreshold: degToRad(controlConfigs.left.velocityThreshold) },
+				right: { velocityThreshold: degToRad(controlConfigs.right.velocityThreshold) },
+				angleThreshold: degToRad(controlConfigs.angleThreshold),
 			}),
 		});
 	};
 </script>
 
-<div class="w-full flex gap-4 p-4">
+<div class="w-full flex flex-col gap-4 p-4">
+	<Card.Root class="w-full">
+		<Card.Header><Card.Title>Configs</Card.Title></Card.Header>
+		<Card.Content class="grid gap-4 md:grid-cols-2">
+			<div class="flex flex-col gap-2">
+				<div>Left velocity threshold: {controlConfigs.left.velocityThreshold} deg/s</div>
+				<Slider type="single" min={10} max={100} step={1} value={controlConfigs.left.velocityThreshold} onValueChange={onLeftVelocityThresholdChanged} onValueCommit={onConfigCommit} />
+			</div>
+			<div class="flex flex-col gap-2">
+				<div>Right velocity threshold: {controlConfigs.right.velocityThreshold} deg/s</div>
+				<Slider type="single" min={10} max={100} step={1} value={controlConfigs.right.velocityThreshold} onValueChange={onRightVelocityThresholdChanged} onValueCommit={onConfigCommit} />
+			</div>
+			<div class="flex flex-col gap-2">
+				<div>Angle threshold: {controlConfigs.angleThreshold} deg</div>
+				<Slider type="single" min={0} max={180} step={1} bind:value={controlConfigs.angleThreshold} onValueCommit={onConfigCommit} />
+			</div>
+		</Card.Content>
+	</Card.Root>
+	<h3 class="text-sm font-semibold">Params</h3>
+	<div class="w-full flex gap-4">
 	<Card.Root class="w-full">
 		<Card.Header>
 			<Card.Title class="flex flex-col gap-2">
-				<div class="pl-1">Right Leg</div>
+				<div class="pl-1">Left Leg</div>
 				<Button
 					variant={leftLinked ? "default" : "outline"}
 					size="icon"
@@ -145,23 +165,6 @@
 						disabled={leftLinked}
 					></Slider>
 				</div>
-				{#if $settings.advanced}
-					<div class="flex flex-col gap-2">
-						<div>
-							Vel TH: {controlParams.left.velocityThreshold} deg/s
-						</div>
-						<Slider
-							type="single"
-							min={10}
-							max={100}
-							step={1}
-							value={controlParams.left.velocityThreshold}
-							onValueChange={onLeftVelocityThresholdChanged}
-							onValueCommit={onParamCommit}
-							disabled={leftLinked}
-						></Slider>
-					</div>
-				{/if}
 			</div>
 		</Card.Content>
 	</Card.Root>
@@ -210,24 +213,8 @@
 						disabled={rightLinked}
 					></Slider>
 				</div>
-				{#if $settings.advanced}
-					<div class="flex flex-col gap-2">
-						<div>
-							Vel TH: {controlParams.right.velocityThreshold} deg/s
-						</div>
-						<Slider
-							type="single"
-							min={10}
-							max={100}
-							step={1}
-							value={controlParams.right.velocityThreshold}
-							onValueChange={onRightVelocityThresholdChanged}
-							onValueCommit={onParamCommit}
-							disabled={rightLinked}
-						></Slider>
-					</div>
-				{/if}
 			</div>
 		</Card.Content>
 	</Card.Root>
+	</div>
 </div>

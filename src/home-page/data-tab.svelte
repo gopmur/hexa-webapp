@@ -50,12 +50,18 @@
 		largestBlock: number;
 	};
 
+	type ImuVector = {
+		x: number;
+		y: number;
+		z: number;
+	};
+
+	type ImuPayload = ImuVector | { accel?: ImuVector; gyro?: ImuVector };
+
 	type WsData = {
-		imu?: {
-			x: number;
-			y: number;
-			z: number;
-		};
+		imu?: ImuPayload;
+		accel?: ImuVector;
+		gyro?: ImuVector;
 		stmCpuUsage?: Record<string, ReceivedStmTaskDataType>;
 		espCpuUsage?: Record<string, ReceivedEspTaskDataType>;
 		tasks?: Record<string, {
@@ -96,12 +102,6 @@
 		absentCounter: number;
 	};
 
-	type ImuData = {
-		x: number;
-		y: number;
-		z: number;
-	};
-
 	type ImuChartData = {
 		t: number;
 		y: number;
@@ -132,6 +132,7 @@
 	let dataTab: DataTab = $state("esp-task-data");
 
 	let imuChartData: ImuChartData[] = $state([]);
+	let accelChartData: ImuChartData[] = $state([]);
 	let motorChartData: MotorChartData[] = $state([]);
 	let heapChartData: HeapChartDataType[] = $state([]);
 	let stmTaskStackSizes: StackSizeResponse = $state({});
@@ -455,15 +456,17 @@
 			) as Record<string, ReceivedEspTaskDataType>;
 			const stmTaskData = data.stmCpuUsage;
 			const espTaskData = normalizedTasks;
-			const imuData =
-				data.imu ??
+			const imuPayload = data.imu;
+			const legacyImuData = imuPayload && "x" in imuPayload ? imuPayload : undefined;
+			const nestedImuData = imuPayload && !("x" in imuPayload) ? imuPayload : undefined;
+			const gyroData =
+				data.gyro ??
+				nestedImuData?.gyro ??
+				legacyImuData ??
 				((data.x !== undefined || data.y !== undefined || data.z !== undefined)
-					? {
-							x: data.x ?? 0,
-							y: data.y ?? 0,
-							z: data.z ?? 0,
-						}
+					? { x: data.x ?? 0, y: data.y ?? 0, z: data.z ?? 0 }
 					: undefined);
+			const accelData = data.accel ?? nestedImuData?.accel;
 			const motorData =
 				data.motor ??
 				((data.position0 !== undefined || data.position1 !== undefined)
@@ -490,11 +493,17 @@
 					t,
 					heapChartData,
 				) as HeapChartDataType[];
-			if (imuData)
+			if (gyroData)
 				imuChartData = appendDataPointToChartData(
-					imuData,
+					gyroData,
 					t,
 					imuChartData,
+				) as ImuChartData[];
+			if (accelData)
+				accelChartData = appendDataPointToChartData(
+					accelData,
+					t,
+					accelChartData,
 				) as ImuChartData[];
 			if (motorData)
 				motorChartData = appendDataPointToChartData(
@@ -530,6 +539,12 @@
 		z: "var(--destructive)",
 	};
 
+	const accelChartColors = {
+		x: "var(--warning)",
+		y: "var(--chart-2)",
+		z: "var(--destructive)",
+	};
+
 	const heapChartColors = {
 		free: "var(--warning)",
 		minFree: "var(--chart-2)",
@@ -541,21 +556,38 @@
 		rightPosition: "var(--chart-2)",
 	};
 
-	let imuSeries = [
+	const imuSeries = [
 		{
 			key: "x",
-			label: "x",
+			label: "Gyro X",
 			color: imuChartColors.x,
 		},
 		{
 			key: "y",
-			label: "y",
+			label: "Gyro Y",
 			color: imuChartColors.y,
 		},
 		{
 			key: "z",
-			label: "z",
+			label: "Gyro Z",
 			color: imuChartColors.z,
+		},
+	];
+	const accelSeries = [
+		{
+			key: "x",
+			label: "Accel X",
+			color: accelChartColors.x,
+		},
+		{
+			key: "y",
+			label: "Accel Y",
+			color: accelChartColors.y,
+		},
+		{
+			key: "z",
+			label: "Accel Z",
+			color: accelChartColors.z,
 		},
 	];
 	const motorSeries = [
@@ -611,6 +643,7 @@
 			closeLogSocket();
 		}
 		imuChartData = [];
+		accelChartData = [];
 		motorChartData = [];
 		heapChartData = [];
 		timeOffset = 0;
@@ -691,29 +724,56 @@
 		</Card.Root>
 		<Card.Root class="flex min-h-0 min-w-0 flex-col gap-0 rounded-lg py-0">
 			<header class="shrink-0 border-b px-3 py-2">
-				<h3 class="text-xs font-semibold">IMU orientation</h3>
+				<h3 class="text-xs font-semibold">IMU</h3>
 			</header>
-			<ChartLegend
-				series={imuSeries}
-				values={imuChartData.at(-1)
-					? Object.fromEntries(Object.entries(imuChartData.at(-1) ?? {}).filter(([key]) => key !== "t").map(([key, value]) => [key, formatChartValue(value, " deg")]))
-					: undefined}
-			/>
-			{#if imuChartData.length > 0}
-				<Chart.Container class="min-h-0 flex-1 aspect-auto" config={chartConfig}>
-					<LineChart
-						data={imuChartData}
-						x="t"
-						axis="x"
-						series={imuSeries}
-						props={{ highlight: { points: false }, xAxis: { format: (value) => String(value / 1_000_000) } }}
-						yDomain={[-180, 180]}
-						xDomain={[imuChartData[0].t, imuChartData[0].t + MAX_T_SPAN]}
-					/>
-				</Chart.Container>
-			{:else}
-				<p class="p-3 text-xs text-muted-foreground">Waiting for IMU telemetry...</p>
-			{/if}
+			<section class="flex min-h-0 flex-1 flex-col">
+				<h4 class="px-3 pt-2 text-[10px] font-semibold">Gyroscope</h4>
+				<ChartLegend
+					series={imuSeries}
+					values={imuChartData.at(-1)
+						? Object.fromEntries(Object.entries(imuChartData.at(-1) ?? {}).filter(([key]) => key !== "t").map(([key, value]) => [key, formatChartValue(value, " deg/s")]))
+						: undefined}
+				/>
+				{#if imuChartData.length > 0}
+					<Chart.Container class="min-h-0 flex-1 aspect-auto" config={chartConfig}>
+						<LineChart
+							data={imuChartData}
+							x="t"
+							axis="x"
+							series={imuSeries}
+							props={{ highlight: { points: false }, xAxis: { format: (value) => String(value / 1_000_000) } }}
+							yDomain={[-180, 180]}
+							xDomain={[imuChartData[0].t, imuChartData[0].t + MAX_T_SPAN]}
+						/>
+					</Chart.Container>
+				{:else}
+					<p class="p-3 text-xs text-muted-foreground">Waiting for gyro telemetry...</p>
+				{/if}
+			</section>
+			<section class="flex min-h-0 flex-1 flex-col border-t">
+				<h4 class="px-3 pt-2 text-[10px] font-semibold">Acceleration</h4>
+				<ChartLegend
+					series={accelSeries}
+					values={accelChartData.at(-1)
+						? Object.fromEntries(Object.entries(accelChartData.at(-1) ?? {}).filter(([key]) => key !== "t").map(([key, value]) => [key, formatChartValue(value)]))
+						: undefined}
+				/>
+				{#if accelChartData.length > 0}
+					<Chart.Container class="min-h-0 flex-1 aspect-auto" config={chartConfig}>
+						<LineChart
+							data={accelChartData}
+							x="t"
+							axis="x"
+							series={accelSeries}
+							props={{ highlight: { points: false }, xAxis: { format: (value) => String(value / 1_000_000) } }}
+							yDomain={[-2, 2]}
+							xDomain={[accelChartData[0].t, accelChartData[0].t + MAX_T_SPAN]}
+						/>
+					</Chart.Container>
+				{:else}
+					<p class="p-3 text-xs text-muted-foreground">Waiting for acceleration telemetry...</p>
+				{/if}
+			</section>
 		</Card.Root>
 		<Card.Root class="flex min-h-0 min-w-0 flex-col gap-0 rounded-lg py-0">
 			<header class="shrink-0 border-b px-3 py-2">
@@ -873,37 +933,54 @@
 			value="imu"
 			class="overflow-y-auto flex-1 flex flex-col gap-4 p-4"
 		>
-			<ChartLegend
-				series={imuSeries}
-				values={imuChartData?.at(-1)
-					? Object.fromEntries(
-							Object.entries(imuChartData.at(-1) ?? {})
-								.filter(([k]) => k !== "t")
-								.map(([k, v]) => [k, formatChartValue(v, " deg")]),
-						)
-					: undefined}
-			/>
-			{#if imuChartData.length > 0}
-			<Chart.Container config={chartConfig}>
-				<LineChart
-					data={imuChartData}
-					x="t"
-					axis="x"
+			<section class="flex min-h-64 flex-1 flex-col gap-2">
+				<h3 class="text-sm font-semibold">Gyroscope</h3>
+				<ChartLegend
 					series={imuSeries}
-					props={{
-						highlight: { points: false },
-						xAxis: {
-							format: (d) => String(d / 1_000_000),
-						},
-					}}
-					yDomain={[-180, 180]}
-						xDomain={[
-							imuChartData.at(0)?.t ?? 0,
-							(imuChartData.at(0)?.t ?? 0) + MAX_T_SPAN,
-					]}
-				></LineChart>
-			</Chart.Container>
-			{/if}
+					values={imuChartData.at(-1)
+						? Object.fromEntries(Object.entries(imuChartData.at(-1) ?? {}).filter(([key]) => key !== "t").map(([key, value]) => [key, formatChartValue(value, " deg/s")]))
+						: undefined}
+				/>
+				{#if imuChartData.length > 0}
+					<Chart.Container class="min-h-0 flex-1" config={chartConfig}>
+						<LineChart
+							data={imuChartData}
+							x="t"
+							axis="x"
+							series={imuSeries}
+							props={{ highlight: { points: false }, xAxis: { format: (value) => String(value / 1_000_000) } }}
+							yDomain={[-180, 180]}
+							xDomain={[imuChartData[0].t, imuChartData[0].t + MAX_T_SPAN]}
+						/>
+					</Chart.Container>
+				{:else}
+					<p class="text-xs text-muted-foreground">Waiting for gyro telemetry...</p>
+				{/if}
+			</section>
+			<section class="flex min-h-64 flex-1 flex-col gap-2 border-t pt-4">
+				<h3 class="text-sm font-semibold">Acceleration</h3>
+				<ChartLegend
+					series={accelSeries}
+					values={accelChartData.at(-1)
+						? Object.fromEntries(Object.entries(accelChartData.at(-1) ?? {}).filter(([key]) => key !== "t").map(([key, value]) => [key, formatChartValue(value)]))
+						: undefined}
+				/>
+				{#if accelChartData.length > 0}
+					<Chart.Container class="min-h-0 flex-1" config={chartConfig}>
+						<LineChart
+							data={accelChartData}
+							x="t"
+							axis="x"
+							series={accelSeries}
+							props={{ highlight: { points: false }, xAxis: { format: (value) => String(value / 1_000_000) } }}
+							yDomain={[-2, 2]}
+							xDomain={[accelChartData[0].t, accelChartData[0].t + MAX_T_SPAN]}
+						/>
+					</Chart.Container>
+				{:else}
+					<p class="text-xs text-muted-foreground">Waiting for acceleration telemetry...</p>
+				{/if}
+			</section>
 		</Tabs.Content>
 		<Tabs.Content
 			value="motor"

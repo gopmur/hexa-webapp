@@ -1,5 +1,6 @@
-import type { SemiautomaticControlParams } from "../control-tab";
+import type { SemiautomaticControlConfigs, SemiautomaticControlParams } from "../control-tab";
 
 type SemiautomaticControlTabProps = {
   controlParams: SemiautomaticControlParams;
+  controlConfigs: SemiautomaticControlConfigs;
 };

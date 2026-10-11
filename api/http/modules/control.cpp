@@ -1,9 +1,11 @@
 #include "tasks/control.hpp"
 #include <cstring>
+#include <variant>
 #include "esp_err.h"
 #include "esp_http_server.h"
 #include "http/modules/control.hpp"
 #include "http_parser.h"
+#include "jayson.hpp"
 #include "system_logger.hpp"
 #include "tasks/motor.hpp"
 
@@ -53,58 +55,61 @@ esp_err_t HttpControlModule::get_params(httpd_req_t* req) {
   res_json.set("running", control_task->running);
   res_json.set("mode", get_control_mode_str(control_task->control_mode));
   manual_control_params_left_json.set("torque",
-                                      control_task->hexa_manual_controller.params.left.torque);
+                                      control_task->hexa_controller.manual.params.left.torque);
   manual_control_params_right_json.set("torque",
-                                       control_task->hexa_manual_controller.params.right.torque);
+                                       control_task->hexa_controller.manual.params.right.torque);
   automatic_control_params_left_json.set(
       "torque",
-      control_task->hexa_automatic_controller.params.left.torque);
+      control_task->hexa_controller.automatic.params.left.torque);
   automatic_control_params_left_json.set(
       "timeout",
-      control_task->hexa_automatic_controller.params.left.timeout);
+      control_task->hexa_controller.automatic.params.left.timeout);
   automatic_control_params_left_json.set(
       "velocityThreshold",
-      control_task->hexa_automatic_controller.params.left.velocity_threshold);
+      control_task->hexa_controller.automatic.configs.get_left_velocity_threshold());
   automatic_control_params_right_json.set(
       "torque",
-      control_task->hexa_automatic_controller.params.right.torque);
+      control_task->hexa_controller.automatic.params.right.torque);
   automatic_control_params_right_json.set(
       "timeout",
-      control_task->hexa_automatic_controller.params.right.timeout);
+      control_task->hexa_controller.automatic.params.right.timeout);
   automatic_control_params_right_json.set(
       "velocityThreshold",
-      control_task->hexa_automatic_controller.params.right.velocity_threshold);
+      control_task->hexa_controller.automatic.configs.get_right_velocity_threshold());
   semiautomatic_control_params_json.set(
       "weakLeg",
-      get_leg_str(control_task->hexa_semiautomatic_controller.params.weak_leg));
+      get_leg_str(control_task->hexa_controller.semiautomatic.params.weak_leg));
   semiautomatic_control_params_left_json.set(
       "torque",
-      control_task->hexa_semiautomatic_controller.params.left.torque);
+      control_task->hexa_controller.semiautomatic.params.left.torque);
   semiautomatic_control_params_left_json.set(
       "timeout",
-      control_task->hexa_semiautomatic_controller.params.left.timeout);
+      control_task->hexa_controller.semiautomatic.params.left.timeout);
   semiautomatic_control_params_left_json.set(
       "delay",
-      control_task->hexa_semiautomatic_controller.params.left.delay);
+      control_task->hexa_controller.semiautomatic.params.left.delay);
   semiautomatic_control_params_right_json.set(
       "torque",
-      control_task->hexa_semiautomatic_controller.params.right.torque);
+      control_task->hexa_controller.semiautomatic.params.right.torque);
   semiautomatic_control_params_right_json.set(
       "timeout",
-      control_task->hexa_semiautomatic_controller.params.right.timeout);
+      control_task->hexa_controller.semiautomatic.params.right.timeout);
   semiautomatic_control_params_right_json.set(
       "delay",
-      control_task->hexa_semiautomatic_controller.params.right.delay);
+      control_task->hexa_controller.semiautomatic.params.right.delay);
   semiautomatic_control_params_json.set(
       "startAssistAngle",
-      control_task->hexa_semiautomatic_controller.params.start_assist_angle);
+      control_task->hexa_controller.semiautomatic.configs.get_start_assist_angle());
   semiautomatic_control_params_json.set(
       "stopAssistAngle",
-      control_task->hexa_semiautomatic_controller.params.stop_assist_angle);
+      control_task->hexa_controller.semiautomatic.configs.get_stop_assist_angle());
+  semiautomatic_control_params_json.set(
+      "epsilon",
+      control_task->hexa_controller.semiautomatic.configs.get_epsilon());
   smart_control_params_left_json.set("torque",
-                                     control_task->hexa_smart_controller.params.left.torque);
+                                     control_task->hexa_controller.smart.params.left.torque);
   smart_control_params_right_json.set("torque",
-                                      control_task->hexa_smart_controller.params.right.torque);
+                                      control_task->hexa_controller.smart.params.right.torque);
 
   manual_control_params_json.set("right", &manual_control_params_right_json);
   manual_control_params_json.set("left", &manual_control_params_left_json);
@@ -183,10 +188,10 @@ esp_err_t HttpControlModule::ws_manual_torque(httpd_req_t* req) {
   auto left_torque = data.get_number("leftTorque");
   auto right_torque = data.get_number("rightTorque");
   if (std::holds_alternative<double>(left_torque)) {
-    control_task->hexa_manual_controller.params.left.torque = std::get<double>(left_torque);
+    control_task->hexa_controller.manual.params.left.torque = std::get<double>(left_torque);
   }
   if (std::holds_alternative<double>(right_torque)) {
-    control_task->hexa_manual_controller.params.right.torque = std::get<double>(right_torque);
+    control_task->hexa_controller.manual.params.right.torque = std::get<double>(right_torque);
   }
 
   free(ws_frame.payload);
@@ -217,10 +222,9 @@ esp_err_t HttpControlModule::put_manual_params(httpd_req_t* req, JsonObject* req
   auto left_torque = std::get<double>(left_torque_result);
   auto right_torque = std::get<double>(right_torque_result);
   LOGI("%d %d", left_torque, right_torque);
-  control_task->hexa_manual_controller.params.left.torque = left_torque;
-  control_task->hexa_manual_controller.params.right.torque = right_torque;
+  control_task->hexa_controller.manual.params.left.torque = left_torque;
+  control_task->hexa_controller.manual.params.right.torque = right_torque;
   return send_success_json(req);
-
 }
 
 esp_err_t HttpControlModule::put_automatic_params(httpd_req_t* req, JsonObject* req_json) {
@@ -237,38 +241,62 @@ esp_err_t HttpControlModule::put_automatic_params(httpd_req_t* req, JsonObject* 
   auto left_json = std::get<JsonObject>(left_json_result);
   auto right_json = std::get<JsonObject>(right_json_result);
 
-  auto left_timeout_result = left_json.get_number("timeout", &resp_json);
   auto left_torque_result = left_json.get_number("torque", &resp_json);
-  auto left_velocity_threshold_result = left_json.get_number("velocityThreshold", &resp_json);
-  auto right_timeout_result = right_json.get_number("timeout", &resp_json);
   auto right_torque_result = right_json.get_number("torque", &resp_json);
+  auto left_timeout_result = left_json.get_number("timeout", &resp_json);
+  auto right_timeout_result = right_json.get_number("timeout", &resp_json);
+
+  if (std::holds_alternative<JsonError>(left_torque_result) ||
+      std::holds_alternative<JsonError>(right_torque_result) ||
+      std::holds_alternative<JsonError>(left_timeout_result) ||
+      std::holds_alternative<JsonError>(right_timeout_result)) {
+    return send_json(req, resp_json, HTTPD_400_BAD_REQUEST);
+  }
+
+  auto left_timeout = std::get<double>(left_timeout_result);
+  auto right_timeout = std::get<double>(right_timeout_result);
+  auto left_torque = std::get<double>(left_torque_result);
+  auto right_torque = std::get<double>(right_torque_result);
+
+  control_task->hexa_controller.automatic.params.right.timeout = right_timeout;
+  control_task->hexa_controller.automatic.params.left.timeout = left_timeout;
+  control_task->hexa_controller.automatic.params.left.torque = left_torque;
+  control_task->hexa_controller.automatic.params.right.torque = right_torque;
+
+  return send_success_json(req);
+}
+
+esp_err_t HttpControlModule::put_automatic_configs(httpd_req_t* req, JsonObject* req_json) {
+  JsonObject resp_json;
+  auto left_json_result = req_json->get_object("left", &resp_json);
+  auto right_json_result = req_json->get_object("right", &resp_json);
+  auto angle_threshold_result = req_json->get_number("angleThreshold", &resp_json);
+  if (std::holds_alternative<JsonError>(left_json_result) ||
+      std::holds_alternative<JsonError>(right_json_result) ||
+      std::holds_alternative<JsonError>(angle_threshold_result)) {
+    return send_json(req, resp_json, HTTPD_400_BAD_REQUEST);
+  }
+
+  auto left_json = std::get<JsonObject>(left_json_result);
+  auto right_json = std::get<JsonObject>(right_json_result);
+  auto angle_threshold = std::get<double>(angle_threshold_result);
+
+  auto left_velocity_threshold_result = left_json.get_number("velocityThreshold", &resp_json);
   auto right_velocity_threshold_result = right_json.get_number("velocityThreshold", &resp_json);
 
-  if (std::holds_alternative<JsonError>(left_timeout_result) ||
-      std::holds_alternative<JsonError>(left_torque_result) ||
-      std::holds_alternative<JsonError>(left_velocity_threshold_result) ||
-      std::holds_alternative<JsonError>(right_timeout_result) ||
-      std::holds_alternative<JsonError>(right_torque_result) ||
+  if (std::holds_alternative<JsonError>(left_velocity_threshold_result) ||
       std::holds_alternative<JsonError>(right_velocity_threshold_result)) {
     return send_json(req, resp_json, HTTPD_400_BAD_REQUEST);
   }
-  auto left_timeout = std::get<double>(left_timeout_result);
-  auto left_torque = std::get<double>(left_torque_result);
+
   auto left_velocity_threshold = std::get<double>(left_velocity_threshold_result);
-  auto right_timeout = std::get<double>(right_timeout_result);
-  auto right_torque = std::get<double>(right_torque_result);
   auto right_velocity_threshold = std::get<double>(right_velocity_threshold_result);
 
-  ESP_LOGI("PARAMS LEFT", "%f %f %f", left_timeout, left_torque, left_velocity_threshold);
-  ESP_LOGI("PARAMS RIGHT", "%f %f %f", right_timeout, right_torque, right_velocity_threshold);
-
-  control_task->hexa_automatic_controller.params.left.timeout = left_timeout;
-  control_task->hexa_automatic_controller.params.left.torque = left_torque;
-  control_task->hexa_automatic_controller.params.left.velocity_threshold = left_velocity_threshold;
-  control_task->hexa_automatic_controller.params.right.timeout = right_timeout;
-  control_task->hexa_automatic_controller.params.right.torque = right_torque;
-  control_task->hexa_automatic_controller.params.right.velocity_threshold =
-      right_velocity_threshold;
+  control_task->hexa_controller.automatic.configs.set_left_velocity_threshold(
+      left_velocity_threshold);
+  control_task->hexa_controller.automatic.configs.set_right_velocity_threshold(
+      right_velocity_threshold);
+  control_task->hexa_controller.automatic.configs.set_angle_threshold(angle_threshold);
 
   return send_success_json(req);
 }
@@ -277,14 +305,10 @@ esp_err_t HttpControlModule::put_semiautomatic_params(httpd_req_t* req, JsonObje
   JsonObject resp_json;
 
   auto weak_leg_result = req_json->get_string("weakLeg", &resp_json);
-  auto start_assist_angle_result = req_json->get_number("startAssistAngle", &resp_json);
-  auto stop_assist_angle_result = req_json->get_number("stopAssistAngle", &resp_json);
   auto left_json_result = req_json->get_object("left", &resp_json);
   auto right_json_result = req_json->get_object("right", &resp_json);
 
   if (std::holds_alternative<JsonError>(weak_leg_result) ||
-      std::holds_alternative<JsonError>(start_assist_angle_result) ||
-      std::holds_alternative<JsonError>(stop_assist_angle_result) ||
       std::holds_alternative<JsonError>(left_json_result) ||
       std::holds_alternative<JsonError>(left_json_result)) {
     return send_json(req, resp_json, HTTPD_400_BAD_REQUEST);
@@ -292,8 +316,6 @@ esp_err_t HttpControlModule::put_semiautomatic_params(httpd_req_t* req, JsonObje
 
   auto weak_leg =
       std::strcmp(std::get<char*>(weak_leg_result), "left") == 0 ? Leg::LEFT : Leg::RIGHT;
-  auto start_assist_angle = std::get<double>(start_assist_angle_result);
-  auto stop_assist_angle = std::get<double>(stop_assist_angle_result);
   auto left_json = std::get<JsonObject>(left_json_result);
   auto right_json = std::get<JsonObject>(right_json_result);
   auto left_torque_result = left_json.get_number("torque", &resp_json);
@@ -319,22 +341,42 @@ esp_err_t HttpControlModule::put_semiautomatic_params(httpd_req_t* req, JsonObje
   auto right_timeout = std::get<double>(right_timeout_result);
   auto right_delay = std::get<double>(right_delay_result);
 
-  control_task->hexa_semiautomatic_controller.params.left.torque = left_torque;
-  control_task->hexa_semiautomatic_controller.params.left.timeout = left_timeout;
-  control_task->hexa_semiautomatic_controller.params.left.delay = left_delay;
-  control_task->hexa_semiautomatic_controller.params.right.torque = right_torque;
-  control_task->hexa_semiautomatic_controller.params.right.timeout = right_timeout;
-  control_task->hexa_semiautomatic_controller.params.right.delay = right_delay;
-  control_task->hexa_semiautomatic_controller.params.weak_leg = weak_leg;
-  control_task->hexa_semiautomatic_controller.params.start_assist_angle = start_assist_angle;
-  control_task->hexa_semiautomatic_controller.params.stop_assist_angle = stop_assist_angle;
+  control_task->hexa_controller.semiautomatic.params.left.torque = left_torque;
+  control_task->hexa_controller.semiautomatic.params.left.timeout = left_timeout;
+  control_task->hexa_controller.semiautomatic.params.left.delay = left_delay;
+  control_task->hexa_controller.semiautomatic.params.right.torque = right_torque;
+  control_task->hexa_controller.semiautomatic.params.right.timeout = right_timeout;
+  control_task->hexa_controller.semiautomatic.params.right.delay = right_delay;
+  control_task->hexa_controller.semiautomatic.params.weak_leg = weak_leg;
 
+  return send_success_json(req);
+}
+
+esp_err_t HttpControlModule::put_semiautomatic_configs(httpd_req_t* req, JsonObject* req_json) {
+  JsonObject resp_json;
+
+  auto start_assist_angle_result = req_json->get_number("startAssistAngle", &resp_json);
+  auto stop_assist_angle_result = req_json->get_number("stopAssistAngle", &resp_json);
+  auto epsilon_result = req_json->get_number("epsilon", &resp_json);
+
+  if (std::holds_alternative<JsonError>(start_assist_angle_result) ||
+      std::holds_alternative<JsonError>(stop_assist_angle_result) ||
+      std::holds_alternative<JsonError>(epsilon_result)) {
+    return send_json(req, resp_json, HTTPD_400_BAD_REQUEST);
+  }
+
+  auto start_assist_angle = std::get<double>(start_assist_angle_result);
+  auto stop_assist_angle = std::get<double>(stop_assist_angle_result);
+  auto epsilon = std::get<double>(epsilon_result);
+
+  control_task->hexa_controller.semiautomatic.configs.set_start_assist_angle(start_assist_angle);
+  control_task->hexa_controller.semiautomatic.configs.set_stop_assist_angle(stop_assist_angle);
+  control_task->hexa_controller.semiautomatic.configs.set_epsilon(epsilon);
   return send_success_json(req);
 }
 
 esp_err_t HttpControlModule::put_smart_params(httpd_req_t* req, JsonObject* req_json) {
   JsonObject resp_json;
-
 
   auto left_json_result = req_json->get_object("left", &resp_json);
   auto right_json_result = req_json->get_object("right", &resp_json);
@@ -356,8 +398,19 @@ esp_err_t HttpControlModule::put_smart_params(httpd_req_t* req, JsonObject* req_
   }
   auto left_torque = std::get<double>(left_torque_result);
   auto right_torque = std::get<double>(right_torque_result);
-  control_task->hexa_smart_controller.params.left.torque = left_torque;
-  control_task->hexa_smart_controller.params.right.torque = right_torque;
+  control_task->hexa_controller.smart.params.left.torque = left_torque;
+  control_task->hexa_controller.smart.params.right.torque = right_torque;
+  return send_success_json(req);
+}
+
+esp_err_t HttpControlModule::put_smart_configs(httpd_req_t* req, JsonObject* req_json) {
+  JsonObject resp_json;
+  auto velocity_threshold_result = req_json->get_number("velocityThreshold", &resp_json);
+  if (std::holds_alternative<JsonError>(velocity_threshold_result)) {
+    return send_json(req, resp_json, HTTPD_400_BAD_REQUEST);
+  }
+  auto velocity_threshold = std::get<double>(velocity_threshold_result);
+  control_task->hexa_controller.smart.configs.set_velocity_threshold(velocity_threshold);
   return send_success_json(req);
 }
 
@@ -373,6 +426,9 @@ void HttpControlModule::register_direct_uris() {
   register_uri_with_option("/automatic/params", HTTP_PUT, put_automatic_params);
   register_uri_with_option("/semiautomatic/params", HTTP_PUT, put_semiautomatic_params);
   register_uri_with_option("/smart/params", HTTP_PUT, put_smart_params);
+  register_uri_with_option("/automatic/configs", HTTP_PUT, put_automatic_configs);
+  register_uri_with_option("/semiautomatic/configs", HTTP_PUT, put_automatic_configs);
+  register_uri_with_option("/smart/configs", HTTP_PUT, put_smart_configs);
   register_ws_uri("/manual/torque", ws_manual_torque, ws_manual_torque_post_handshake);
 }
 

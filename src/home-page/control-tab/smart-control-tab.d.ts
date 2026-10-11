@@ -1,5 +1,6 @@
-import type { SmartControlParams } from "../control-tab";
+import type { SmartControlConfigs, SmartControlParams } from "../control-tab";
 
 type SmartControlTabProps = {
 	controlParams: SmartControlParams;
+	controlConfigs: SmartControlConfigs;
 };

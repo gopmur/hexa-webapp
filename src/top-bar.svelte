@@ -20,7 +20,6 @@
 	import { HouseIcon, LockIcon, SettingsIcon } from "lucide-svelte";
 	import type { HTMLTdAttributes } from "svelte/elements";
 	import { cn } from "$lib/utils";
-	import { settings } from "./context/settings";
 
 	const WIFI_API_ADDRESS = `${API_ADDRESS}/api/system/wifi`;
 
@@ -327,14 +326,12 @@
 						<RotateCw />
 						Restart
 					</Button>
-					{#if $settings.advanced}
-						<Button variant="secondary" onclick={restartEsp}
-							><RotateCw />Restart ESP32</Button
-						>
-						<Button variant="secondary" onclick={restartStm}
-							><RotateCw />Restart STM32</Button
-						>
-					{/if}
+					<Button variant="secondary" onclick={restartEsp}
+						><RotateCw />Restart ESP32</Button
+					>
+					<Button variant="secondary" onclick={restartStm}
+						><RotateCw />Restart STM32</Button
+					>
 				</Dialog.Content>
 				<Dialog.Trigger>
 					<Button variant="outline" size="icon-lg">
