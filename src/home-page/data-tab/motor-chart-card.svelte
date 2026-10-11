@@ -3,6 +3,7 @@
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { LineChart } from "layerchart";
 	import ChartLegend from "./chart-legend.svelte";
+	import ChartPauseButton from "./chart-pause-button.svelte";
 
 	type ChartPoint = { t: number } & Record<string, number>;
 	type ChartSeries = { key: string; label: string; color: string };
@@ -12,9 +13,11 @@
 		series: ChartSeries[];
 		unit: string;
 		domain: [number, number];
+		paused: boolean;
+		onPauseToggle: () => void;
 	};
 
-	let { title, data, series, unit, domain }: Props = $props();
+	let { title, data, series, unit, domain, paused, onPauseToggle }: Props = $props();
 	const chartConfig = {
 		telemetry: { label: "Telemetry", color: "var(--chart-1)" },
 	} satisfies Chart.ChartConfig;
@@ -31,8 +34,9 @@
 </script>
 
 <Card.Root class="flex min-h-64 min-w-0 flex-col gap-0 rounded-lg py-0">
-	<header class="shrink-0 border-b px-3 py-2">
+	<header class="flex shrink-0 items-center justify-between border-b px-3 py-2">
 		<h3 class="text-xs font-semibold">{title}</h3>
+		<ChartPauseButton {paused} chartName={title} onclick={onPauseToggle} />
 	</header>
 	<ChartLegend {series} {values} />
 	{#if data.length > 0}

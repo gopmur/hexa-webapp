@@ -9,6 +9,7 @@
 	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
 	import ChartLegend from "./data-tab/chart-legend.svelte";
 	import MotorChartCard from "./data-tab/motor-chart-card.svelte";
+	import ChartPauseButton from "./data-tab/chart-pause-button.svelte";
 	import Button from "$lib/components/ui/button/button.svelte";
 	import { ArrowDownToLine, Pause } from "lucide-svelte";
 	import * as Card from "$lib/components/ui/card/index.js";
@@ -134,6 +135,7 @@
 	type StackSizeResponse = Record<string, number>;
 
 	type DataTab =  "esp-task-data" | "imu" | "motor" | "heap" | "logs";
+	type ChartPauseKey = "gyro" | "acceleration" | "motorPosition" | "motorVelocity" | "motorTorque" | "heap";
 
 	let stmTaskTableData: TaskTableData[] = $state([]);
 	let espTaskTableData: TaskTableData[] = $state([]);
@@ -147,6 +149,14 @@
 	let motorTorqueChartData: MotorChartData[] = $state([]);
 	let motorCount = $state(0);
 	let heapChartData: HeapChartDataType[] = $state([]);
+	let chartPaused: Record<ChartPauseKey, boolean> = $state({
+		gyro: false,
+		acceleration: false,
+		motorPosition: false,
+		motorVelocity: false,
+		motorTorque: false,
+		heap: false,
+	});
 	let stmTaskStackSizes: StackSizeResponse = $state({});
 	let espTaskStackSizes: StackSizeResponse = $state({});
 	let espStackSizesLoading = true;
@@ -155,6 +165,9 @@
 	let setTimeOffset = true;
 	let motorTimeOffset: number | undefined;
 	let lastMotorTimestamp: number | undefined;
+	const toggleChartPause = (chart: ChartPauseKey) => {
+		chartPaused[chart] = !chartPaused[chart];
+	};
 	const TASK_MISSING_GRACE_PACKETS = 50;
 	const sortedTaskTableData = $derived.by(() =>
 		[...espTaskTableData].sort((left, right) => {
@@ -559,36 +572,42 @@
 					const torqueValues = Object.fromEntries(
 						motorFeedbacks.map((feedback, index) => [`motor${index}`, feedback.torque]),
 					);
-					motorPositionChartData = appendDataPointToChartData(
-						positionValues,
-						motorTime,
-						motorPositionChartData,
-					) as MotorChartData[];
-					motorVelocityChartData = appendDataPointToChartData(
-						velocityValues,
-						motorTime,
-						motorVelocityChartData,
-					) as MotorChartData[];
-					motorTorqueChartData = appendDataPointToChartData(
-						torqueValues,
-						motorTime,
-						motorTorqueChartData,
-					) as MotorChartData[];
+					if (!chartPaused.motorPosition) {
+						motorPositionChartData = appendDataPointToChartData(
+							positionValues,
+							motorTime,
+							motorPositionChartData,
+						) as MotorChartData[];
+					}
+					if (!chartPaused.motorVelocity) {
+						motorVelocityChartData = appendDataPointToChartData(
+							velocityValues,
+							motorTime,
+							motorVelocityChartData,
+						) as MotorChartData[];
+					}
+					if (!chartPaused.motorTorque) {
+						motorTorqueChartData = appendDataPointToChartData(
+							torqueValues,
+							motorTime,
+							motorTorqueChartData,
+						) as MotorChartData[];
+					}
 				}
 			}
-			if (heapData)
+			if (heapData && !chartPaused.heap)
 				heapChartData = appendDataPointToChartData(
 					heapData,
 					t,
 					heapChartData,
 				) as HeapChartDataType[];
-			if (gyroData)
+			if (gyroData && !chartPaused.gyro)
 				imuChartData = appendDataPointToChartData(
 					gyroData,
 					t,
 					imuChartData,
 				) as ImuChartData[];
-			if (accelData)
+			if (accelData && !chartPaused.acceleration)
 				accelChartData = appendDataPointToChartData(
 					accelData,
 					t,
@@ -809,8 +828,9 @@
 			</div>
 		</Card.Root>
 		<Card.Root class="flex min-h-0 min-w-0 flex-col gap-0 rounded-lg py-0">
-			<header class="shrink-0 border-b px-3 py-2">
+			<header class="flex shrink-0 items-center justify-between border-b px-3 py-2">
 				<h3 class="text-xs font-semibold">Gyroscope</h3>
+				<ChartPauseButton paused={chartPaused.gyro} chartName="Gyroscope" onclick={() => toggleChartPause("gyro")} />
 			</header>
 			<ChartLegend
 				series={imuSeries}
@@ -827,8 +847,9 @@
 			{/if}
 		</Card.Root>
 		<Card.Root class="flex min-h-0 min-w-0 flex-col gap-0 rounded-lg py-0">
-			<header class="shrink-0 border-b px-3 py-2">
+			<header class="flex shrink-0 items-center justify-between border-b px-3 py-2">
 				<h3 class="text-xs font-semibold">Acceleration</h3>
+				<ChartPauseButton paused={chartPaused.acceleration} chartName="Acceleration" onclick={() => toggleChartPause("acceleration")} />
 			</header>
 				<ChartLegend
 					series={accelSeries}
@@ -852,12 +873,13 @@
 					<p class="p-3 text-xs text-muted-foreground">Waiting for acceleration telemetry...</p>
 				{/if}
 		</Card.Root>
-		<MotorChartCard title="Motor position" data={motorPositionChartData} series={motorSeries()} unit=" deg" domain={[-90, 180]} />
-		<MotorChartCard title="Motor velocity" data={motorVelocityChartData} series={motorSeries()} unit=" deg/s" domain={[-180, 180]} />
-		<MotorChartCard title="Motor torque" data={motorTorqueChartData} series={motorSeries()} unit=" N.m" domain={[-16, 16]} />
+		<MotorChartCard title="Motor position" data={motorPositionChartData} series={motorSeries()} unit=" deg" domain={[-90, 180]} paused={chartPaused.motorPosition} onPauseToggle={() => toggleChartPause("motorPosition")} />
+		<MotorChartCard title="Motor velocity" data={motorVelocityChartData} series={motorSeries()} unit=" deg/s" domain={[-180, 180]} paused={chartPaused.motorVelocity} onPauseToggle={() => toggleChartPause("motorVelocity")} />
+		<MotorChartCard title="Motor torque" data={motorTorqueChartData} series={motorSeries()} unit=" N.m" domain={[-16, 16]} paused={chartPaused.motorTorque} onPauseToggle={() => toggleChartPause("motorTorque")} />
 		<Card.Root class="flex min-h-0 min-w-0 flex-col gap-0 rounded-lg py-0">
-			<header class="shrink-0 border-b px-3 py-2">
+			<header class="flex shrink-0 items-center justify-between border-b px-3 py-2">
 				<h3 class="text-xs font-semibold">Heap memory</h3>
+				<ChartPauseButton paused={chartPaused.heap} chartName="Heap memory" onclick={() => toggleChartPause("heap")} />
 			</header>
 			<ChartLegend
 				series={heapSeries}
@@ -989,8 +1011,9 @@
 		>
 			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
 			<Card.Root class="flex min-h-64 min-w-0 flex-col gap-0 rounded-lg py-0">
-				<header class="shrink-0 border-b px-3 py-2">
+				<header class="flex shrink-0 items-center justify-between border-b px-3 py-2">
 					<h3 class="text-xs font-semibold">Gyroscope</h3>
+					<ChartPauseButton paused={chartPaused.gyro} chartName="Gyroscope" onclick={() => toggleChartPause("gyro")} />
 				</header>
 				<ChartLegend
 					series={imuSeries}
@@ -1015,8 +1038,9 @@
 				{/if}
 			</Card.Root>
 			<Card.Root class="flex min-h-64 min-w-0 flex-col gap-0 rounded-lg py-0">
-				<header class="shrink-0 border-b px-3 py-2">
+				<header class="flex shrink-0 items-center justify-between border-b px-3 py-2">
 					<h3 class="text-xs font-semibold">Acceleration</h3>
+					<ChartPauseButton paused={chartPaused.acceleration} chartName="Acceleration" onclick={() => toggleChartPause("acceleration")} />
 				</header>
 				<ChartLegend
 					series={accelSeries}
@@ -1052,15 +1076,16 @@
 						<p class="text-sm text-muted-foreground">Waiting for motor telemetry...</p>
 					</Card.Root>
 				{/if}
-				<MotorChartCard title="Motor position" data={motorPositionChartData} series={motorSeries()} unit=" deg" domain={[-90, 180]} />
-				<MotorChartCard title="Motor velocity" data={motorVelocityChartData} series={motorSeries()} unit=" deg/s" domain={[-180, 180]} />
-				<MotorChartCard title="Motor torque" data={motorTorqueChartData} series={motorSeries()} unit=" N.m" domain={[-16, 16]} />
+				<MotorChartCard title="Motor position" data={motorPositionChartData} series={motorSeries()} unit=" deg" domain={[-90, 180]} paused={chartPaused.motorPosition} onPauseToggle={() => toggleChartPause("motorPosition")} />
+				<MotorChartCard title="Motor velocity" data={motorVelocityChartData} series={motorSeries()} unit=" deg/s" domain={[-180, 180]} paused={chartPaused.motorVelocity} onPauseToggle={() => toggleChartPause("motorVelocity")} />
+				<MotorChartCard title="Motor torque" data={motorTorqueChartData} series={motorSeries()} unit=" N.m" domain={[-16, 16]} paused={chartPaused.motorTorque} onPauseToggle={() => toggleChartPause("motorTorque")} />
 			</div>
 		</Tabs.Content>
 		<Tabs.Content value="heap" class="overflow-y-auto flex-1 p-4">
 			<Card.Root class="flex min-h-64 min-w-0 flex-col gap-0 rounded-lg py-0">
-				<header class="shrink-0 border-b px-3 py-2">
+				<header class="flex shrink-0 items-center justify-between border-b px-3 py-2">
 					<h3 class="text-xs font-semibold">Heap memory</h3>
+					<ChartPauseButton paused={chartPaused.heap} chartName="Heap memory" onclick={() => toggleChartPause("heap")} />
 				</header>
 				<ChartLegend
 					series={heapSeries}
