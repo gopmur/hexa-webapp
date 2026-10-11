@@ -8,6 +8,7 @@
 	import { formatSize, numberIsValid, radToDeg, sleep } from "$lib/utils";
 	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
 	import ChartLegend from "./data-tab/chart-legend.svelte";
+	import MotorChartCard from "./data-tab/motor-chart-card.svelte";
 	import Separator from "$lib/components/ui/separator/separator.svelte";
 	import Button from "$lib/components/ui/button/button.svelte";
 	import { ArrowDownToLine, Pause } from "lucide-svelte";
@@ -125,9 +126,7 @@
 
 	type MotorChartData = {
 		t: number;
-		rightPosition: number;
-		leftPosition: number;
-	};
+	} & Record<string, number>;
 
 	type StackSizeResponse = Record<string, number>;
 
@@ -140,7 +139,10 @@
 
 	let imuChartData: ImuChartData[] = $state([]);
 	let accelChartData: ImuChartData[] = $state([]);
-	let motorChartData: MotorChartData[] = $state([]);
+	let motorPositionChartData: MotorChartData[] = $state([]);
+	let motorVelocityChartData: MotorChartData[] = $state([]);
+	let motorTorqueChartData: MotorChartData[] = $state([]);
+	let motorCount = $state(0);
 	let heapChartData: HeapChartDataType[] = $state([]);
 	let stmTaskStackSizes: StackSizeResponse = $state({});
 	let espTaskStackSizes: StackSizeResponse = $state({});
@@ -474,38 +476,72 @@
 					? { x: data.x ?? 0, y: data.y ?? 0, z: data.z ?? 0 }
 					: undefined);
 			const accelData = data.accel ?? nestedImuData?.accel;
-			const leftMotorFeedback = data.feedbacks?.[0];
-			const rightMotorFeedback = data.feedbacks?.[1];
-			const feedbackMotorData =
-				leftMotorFeedback &&
-				rightMotorFeedback &&
-				Number.isFinite(leftMotorFeedback.position) &&
-				Number.isFinite(rightMotorFeedback.position)
-					? {
-							leftPosition: leftMotorFeedback.position,
-							rightPosition: rightMotorFeedback.position,
-						}
-					: undefined;
-			const motorData =
-				data.motor ??
-				feedbackMotorData ??
-				((data.position0 !== undefined || data.position1 !== undefined)
-					? {
-							leftPosition: data.position0 ?? 0,
-							rightPosition: data.position1 ?? 0,
-							leftVelocity: data.velocity0 ?? 0,
-							rightVelocity: data.velocity1 ?? 0,
-						}
-					: undefined);
+			const motorFeedbacks: MotorFeedback[] | undefined = data.feedbacks ??
+				(data.motor
+					? [
+							{
+								position: data.motor.leftPosition,
+								velocity: data.motor.leftVelocity ?? 0,
+								torque: 0,
+							},
+							{
+								position: data.motor.rightPosition,
+								velocity: data.motor.rightVelocity ?? 0,
+								torque: 0,
+							},
+						]
+					: data.position0 !== undefined || data.position1 !== undefined
+						? [
+								{
+									position: data.position0 ?? 0,
+									velocity: data.velocity0 ?? 0,
+									torque: 0,
+								},
+								{
+									position: data.position1 ?? 0,
+									velocity: data.velocity1 ?? 0,
+									torque: 0,
+								},
+							]
+						: undefined);
 			const heapData = data.espHeap;
 			if (setTimeOffset) {
 				timeOffset = data.microseconds;
 				setTimeOffset = false;
 			}
 			const t = data.microseconds - timeOffset;
-			if (motorData) {
-				motorData.leftPosition = radToDeg(motorData.leftPosition);
-				motorData.rightPosition = radToDeg(motorData.rightPosition);
+			if (motorFeedbacks) {
+				motorCount = motorFeedbacks.length;
+				const positionValues = Object.fromEntries(
+					motorFeedbacks.map((feedback, index) => [
+						`motor${index}`,
+						radToDeg(feedback.position),
+					]),
+				);
+				const velocityValues = Object.fromEntries(
+					motorFeedbacks.map((feedback, index) => [
+						`motor${index}`,
+						radToDeg(feedback.velocity),
+					]),
+				);
+				const torqueValues = Object.fromEntries(
+					motorFeedbacks.map((feedback, index) => [`motor${index}`, feedback.torque]),
+				);
+				motorPositionChartData = appendDataPointToChartData(
+					positionValues,
+					t,
+					motorPositionChartData,
+				) as MotorChartData[];
+				motorVelocityChartData = appendDataPointToChartData(
+					velocityValues,
+					t,
+					motorVelocityChartData,
+				) as MotorChartData[];
+				motorTorqueChartData = appendDataPointToChartData(
+					torqueValues,
+					t,
+					motorTorqueChartData,
+				) as MotorChartData[];
 			}
 			if (heapData)
 				heapChartData = appendDataPointToChartData(
@@ -525,12 +561,6 @@
 					t,
 					accelChartData,
 				) as ImuChartData[];
-			if (motorData)
-				motorChartData = appendDataPointToChartData(
-					motorData,
-					t,
-					motorChartData,
-				) as MotorChartData[];
 			if (stmTaskData) {
 				stmTaskTableData = updateTaskTable(
 					stmTaskTableData,
@@ -571,10 +601,13 @@
 		largestBlock: "var(--destructive)",
 	};
 
-	const motorChartColors = {
-		leftPosition: "var(--warning)",
-		rightPosition: "var(--chart-2)",
-	};
+	const motorChartColors = [
+		"var(--warning)",
+		"var(--chart-2)",
+		"var(--destructive)",
+		"var(--chart-4)",
+		"var(--chart-5)",
+	];
 
 	const imuSeries = [
 		{
@@ -610,18 +643,12 @@
 			color: accelChartColors.z,
 		},
 	];
-	const motorSeries = [
-		{
-			key: "leftPosition",
-			label: "Left position",
-			color: motorChartColors.leftPosition,
-		},
-		{
-			key: "rightPosition",
-			label: "Right position",
-			color: motorChartColors.rightPosition,
-		},
-	];
+	const motorSeries = () =>
+		Array.from({ length: motorCount }, (_, index) => ({
+			key: `motor${index}`,
+			label: `Motor ${index + 1}`,
+			color: motorChartColors[index % motorChartColors.length],
+		}));
 
 	const heapSeries = [
 		{
@@ -664,7 +691,10 @@
 		}
 		imuChartData = [];
 		accelChartData = [];
-		motorChartData = [];
+		motorPositionChartData = [];
+		motorVelocityChartData = [];
+		motorTorqueChartData = [];
+		motorCount = 0;
 		heapChartData = [];
 		timeOffset = 0;
 		setTimeOffset = true;
@@ -689,8 +719,8 @@
 </script>
 
 {#if dashboard}
-	<div class="grid h-full min-h-0 grid-cols-2 grid-rows-2 gap-2 overflow-hidden p-2">
-		<Card.Root class="min-h-0 min-w-0 gap-0 rounded-lg py-0">
+	<div class="grid h-full min-h-0 auto-rows-[18rem] grid-cols-1 gap-2 overflow-auto p-2 sm:grid-cols-2 xl:grid-cols-3">
+		<Card.Root class="col-span-full min-h-0 min-w-0 gap-0 rounded-lg py-0">
 			<header class="flex shrink-0 items-center justify-between border-b px-3 py-2">
 				<h3 class="text-xs font-semibold">Task monitor</h3>
 				<span class="text-[10px] text-muted-foreground">{sortedTaskTableData.length} active</span>
@@ -744,34 +774,26 @@
 		</Card.Root>
 		<Card.Root class="flex min-h-0 min-w-0 flex-col gap-0 rounded-lg py-0">
 			<header class="shrink-0 border-b px-3 py-2">
-				<h3 class="text-xs font-semibold">IMU</h3>
+				<h3 class="text-xs font-semibold">Gyroscope</h3>
 			</header>
-			<section class="flex min-h-0 flex-1 flex-col">
-				<h4 class="px-3 pt-2 text-[10px] font-semibold">Gyroscope</h4>
-				<ChartLegend
-					series={imuSeries}
-					values={imuChartData.at(-1)
-						? Object.fromEntries(Object.entries(imuChartData.at(-1) ?? {}).filter(([key]) => key !== "t").map(([key, value]) => [key, formatChartValue(value, " deg/s")]))
-						: undefined}
-				/>
-				{#if imuChartData.length > 0}
-					<Chart.Container class="min-h-0 flex-1 aspect-auto" config={chartConfig}>
-						<LineChart
-							data={imuChartData}
-							x="t"
-							axis="x"
-							series={imuSeries}
-							props={{ highlight: { points: false }, xAxis: { format: (value) => String(value / 1_000_000) } }}
-							yDomain={[-180, 180]}
-							xDomain={[imuChartData[0].t, imuChartData[0].t + MAX_T_SPAN]}
-						/>
-					</Chart.Container>
-				{:else}
-					<p class="p-3 text-xs text-muted-foreground">Waiting for gyro telemetry...</p>
-				{/if}
-			</section>
-			<section class="flex min-h-0 flex-1 flex-col border-t">
-				<h4 class="px-3 pt-2 text-[10px] font-semibold">Acceleration</h4>
+			<ChartLegend
+				series={imuSeries}
+				values={imuChartData.at(-1)
+					? Object.fromEntries(Object.entries(imuChartData.at(-1) ?? {}).filter(([key]) => key !== "t").map(([key, value]) => [key, formatChartValue(value, " deg/s")]))
+					: undefined}
+			/>
+			{#if imuChartData.length > 0}
+				<Chart.Container class="min-h-0 flex-1 aspect-auto" config={chartConfig}>
+					<LineChart data={imuChartData} x="t" axis="x" series={imuSeries} props={{ highlight: { points: false }, xAxis: { format: (value) => String(value / 1_000_000) } }} yDomain={[-180, 180]} xDomain={[imuChartData[0].t, imuChartData[0].t + MAX_T_SPAN]} />
+				</Chart.Container>
+			{:else}
+				<p class="p-3 text-xs text-muted-foreground">Waiting for gyro telemetry...</p>
+			{/if}
+		</Card.Root>
+		<Card.Root class="flex min-h-0 min-w-0 flex-col gap-0 rounded-lg py-0">
+			<header class="shrink-0 border-b px-3 py-2">
+				<h3 class="text-xs font-semibold">Acceleration</h3>
+			</header>
 				<ChartLegend
 					series={accelSeries}
 					values={accelChartData.at(-1)
@@ -793,35 +815,11 @@
 				{:else}
 					<p class="p-3 text-xs text-muted-foreground">Waiting for acceleration telemetry...</p>
 				{/if}
-			</section>
 		</Card.Root>
-		<Card.Root class="flex min-h-0 min-w-0 flex-col gap-0 rounded-lg py-0">
-			<header class="shrink-0 border-b px-3 py-2">
-				<h3 class="text-xs font-semibold">Motor position</h3>
-			</header>
-			<ChartLegend
-				series={motorSeries}
-				values={motorChartData.at(-1)
-					? Object.fromEntries(Object.entries(motorChartData.at(-1) ?? {}).filter(([key]) => key !== "t").map(([key, value]) => [key, formatChartValue(value, " deg")]))
-					: undefined}
-			/>
-			{#if motorChartData.length > 0}
-				<Chart.Container class="min-h-0 flex-1 aspect-auto" config={chartConfig}>
-					<LineChart
-						data={motorChartData}
-						x="t"
-						axis="x"
-						series={motorSeries}
-						props={{ highlight: { points: false }, xAxis: { format: (value) => String(value / 1_000_000) } }}
-						yDomain={[-90, 180]}
-						xDomain={[motorChartData[0].t, motorChartData[0].t + MAX_T_SPAN]}
-					/>
-				</Chart.Container>
-			{:else}
-				<p class="p-3 text-xs text-muted-foreground">Waiting for motor telemetry...</p>
-			{/if}
-		</Card.Root>
-		<Card.Root class="flex min-h-0 min-w-0 flex-col gap-0 rounded-lg py-0">
+		<MotorChartCard title="Motor position" data={motorPositionChartData} series={motorSeries()} unit=" deg" domain={[-90, 180]} />
+		<MotorChartCard title="Motor velocity" data={motorVelocityChartData} series={motorSeries()} unit=" deg/s" domain={[-180, 180]} />
+		<MotorChartCard title="Motor torque" data={motorTorqueChartData} series={motorSeries()} unit=" N.m" domain={[-16, 16]} />
+		<Card.Root class="col-span-full flex min-h-0 min-w-0 flex-col gap-0 rounded-lg py-0">
 			<header class="flex shrink-0 items-center justify-between border-b px-3 py-2">
 				<h3 class="text-xs font-semibold">System log</h3>
 				<div class="flex items-center gap-2">
@@ -951,10 +949,13 @@
 		</Tabs.Content>
 		<Tabs.Content
 			value="imu"
-			class="overflow-y-auto flex-1 flex flex-col gap-4 p-4"
+			class="overflow-y-auto flex-1 p-4"
 		>
-			<section class="flex min-h-64 flex-1 flex-col gap-2">
-				<h3 class="text-sm font-semibold">Gyroscope</h3>
+			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+			<Card.Root class="flex min-h-64 min-w-0 flex-col gap-0 rounded-lg py-0">
+				<header class="shrink-0 border-b px-3 py-2">
+					<h3 class="text-xs font-semibold">Gyroscope</h3>
+				</header>
 				<ChartLegend
 					series={imuSeries}
 					values={imuChartData.at(-1)
@@ -974,11 +975,13 @@
 						/>
 					</Chart.Container>
 				{:else}
-					<p class="text-xs text-muted-foreground">Waiting for gyro telemetry...</p>
+					<p class="p-3 text-xs text-muted-foreground">Waiting for gyro telemetry...</p>
 				{/if}
-			</section>
-			<section class="flex min-h-64 flex-1 flex-col gap-2 border-t pt-4">
-				<h3 class="text-sm font-semibold">Acceleration</h3>
+			</Card.Root>
+			<Card.Root class="flex min-h-64 min-w-0 flex-col gap-0 rounded-lg py-0">
+				<header class="shrink-0 border-b px-3 py-2">
+					<h3 class="text-xs font-semibold">Acceleration</h3>
+				</header>
 				<ChartLegend
 					series={accelSeries}
 					values={accelChartData.at(-1)
@@ -998,46 +1001,24 @@
 						/>
 					</Chart.Container>
 				{:else}
-					<p class="text-xs text-muted-foreground">Waiting for acceleration telemetry...</p>
+					<p class="p-3 text-xs text-muted-foreground">Waiting for acceleration telemetry...</p>
 				{/if}
-			</section>
+			</Card.Root>
+			</div>
 		</Tabs.Content>
 		<Tabs.Content
 			value="motor"
-			class="overflow-y-auto flex-1 flex flex-col gap-4 p-4"
+			class="overflow-y-auto flex-1 p-4"
 		>
-			<div class="flex flex-col gap-1">
-				<ChartLegend
-					series={motorSeries}
-					values={motorChartData?.at(-1)
-						? Object.fromEntries(
-								Object.entries(motorChartData.at(-1) ?? {})
-									.filter(([k]) => k !== "t")
-									.map(([k, v]) => [k, formatChartValue(v, " deg")]),
-							)
-						: undefined}
-				/>
-				{#if motorChartData.length > 0}
-				<Chart.Container config={chartConfig}>
-					<LineChart
-						data={motorChartData}
-						x="t"
-						axis="x"
-						series={motorSeries}
-						props={{
-							highlight: { points: false },
-							xAxis: {
-								format: (d) => String(d / 1_000_000),
-							},
-						}}
-						yDomain={[-90, 180]}
-						xDomain={[
-							motorChartData.at(0)?.t ?? 0,
-							(motorChartData.at(0)?.t ?? 0) + MAX_T_SPAN,
-						]}
-					></LineChart>
-				</Chart.Container>
+			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+				{#if motorCount === 0}
+					<Card.Root class="min-h-64 p-4">
+						<p class="text-sm text-muted-foreground">Waiting for motor telemetry...</p>
+					</Card.Root>
 				{/if}
+				<MotorChartCard title="Motor position" data={motorPositionChartData} series={motorSeries()} unit=" deg" domain={[-90, 180]} />
+				<MotorChartCard title="Motor velocity" data={motorVelocityChartData} series={motorSeries()} unit=" deg/s" domain={[-180, 180]} />
+				<MotorChartCard title="Motor torque" data={motorTorqueChartData} series={motorSeries()} unit=" N.m" domain={[-16, 16]} />
 			</div>
 		</Tabs.Content>
 		<Tabs.Content value="logs" class="overflow-hidden h-full p-4">
