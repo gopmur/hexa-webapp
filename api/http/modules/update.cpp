@@ -19,6 +19,7 @@ HttpUpdateModule::PutHandler HttpUpdateModule::put;
 void HttpUpdateModule::PutHandler::main(HttpJsonAsyncHandlerArgs* args) {
   auto req_json = args->json;
   auto req = args->req;
+  ota_busy = true;
 
   JsonObject resp_json;
   auto version_result = req_json.get_string("version", &resp_json);
@@ -32,8 +33,8 @@ void HttpUpdateModule::PutHandler::main(HttpJsonAsyncHandlerArgs* args) {
       .ota_resumption = true,
   };
 
-  int downloaded;
-  int total;
+  int downloaded = 0;
+  int total = 0;
 
   std::string version;
   std::string uri;
@@ -60,7 +61,7 @@ void HttpUpdateModule::PutHandler::main(HttpJsonAsyncHandlerArgs* args) {
     goto cleanup;
   }
 
-  while (esp_https_ota_perform(ota_handle) == ESP_ERR_HTTPS_OTA_IN_PROGRESS) {
+  while ((err = esp_https_ota_perform(ota_handle)) == ESP_ERR_HTTPS_OTA_IN_PROGRESS) {
     downloaded = esp_https_ota_get_image_len_read(ota_handle);
     total = esp_https_ota_get_image_size(ota_handle);
     ws_task.send_to_ota_connections(total, downloaded);
@@ -68,13 +69,22 @@ void HttpUpdateModule::PutHandler::main(HttpJsonAsyncHandlerArgs* args) {
 
   if (err != ESP_OK) {
     ws_task.send_to_ota_connections(false);
+    esp_https_ota_abort(ota_handle);
+    send_message_json(req, "ota download failed", HTTPD_500_INTERNAL_SERVER_ERROR);
+    goto cleanup;
+  }
+
+  total = esp_https_ota_get_image_size(ota_handle);
+  err = esp_https_ota_finish(ota_handle);
+  if (err != ESP_OK) {
+    ws_task.send_to_ota_connections(false);
+    send_message_json(req, "ota finish failed", HTTPD_500_INTERNAL_SERVER_ERROR);
     goto cleanup;
   }
 
   ws_task.send_to_ota_connections(total, total);
   ws_task.send_to_ota_connections(true);
 
-  esp_https_ota_finish(ota_handle);
   send_success_json(req);
 
 cleanup:

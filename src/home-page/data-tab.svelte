@@ -111,7 +111,6 @@
 		state?: string;
 		currentPriority?: number;
 		basePriority?: number;
-		absentCounter: number;
 	};
 
 	type ImuChartData = {
@@ -168,7 +167,6 @@
 	const toggleChartPause = (chart: ChartPauseKey) => {
 		chartPaused[chart] = !chartPaused[chart];
 	};
-	const TASK_MISSING_GRACE_PACKETS = 50;
 	const sortedTaskTableData = $derived.by(() =>
 		[...espTaskTableData].sort((left, right) => {
 			if (left.name === "total") return right.name === "total" ? 0 : -1;
@@ -249,7 +247,6 @@
 		receivedTaskData: Record<string, ReceivedEspTaskDataType>,
 		stackSizes: Record<string, number>,
 	) => {
-		let newTaskTableData = taskTableData.map((row) => ({ ...row }));
 		receivedTaskData = Object.fromEntries(
 			Object.entries(receivedTaskData).filter(
 				([name, taskData]) =>
@@ -258,12 +255,9 @@
 					name != "main",
 			),
 		);
-		for (const taskRecord of newTaskTableData) {
-			taskRecord.absentCounter++;
-		}
-		newTaskTableData = newTaskTableData.filter(
-			(serviceStatus) => serviceStatus.absentCounter <= TASK_MISSING_GRACE_PACKETS,
-		);
+		let newTaskTableData = taskTableData
+			.filter((row) => row.name === "total" || Object.hasOwn(receivedTaskData, row.name))
+			.map((row) => ({ ...row }));
 		for (const name in receivedTaskData) {
 			const serviceStatus = newTaskTableData.find(
 				(serviceStatus) => serviceStatus.name == name,
@@ -289,7 +283,6 @@
 					state: receivedTaskData[name].state,
 					currentPriority: receivedTaskData[name].currentPriority,
 					basePriority: receivedTaskData[name].basePriority,
-					absentCounter: 0,
 				});
 			} else {
 				serviceStatus.name = name;
@@ -303,7 +296,6 @@
 				serviceStatus.stackSize = numberIsValid(stackSizes[name])
 					? stackSizes[name] * 4
 					: undefined;
-				serviceStatus.absentCounter = 0;
 				serviceStatus.maxStackUsagePercent =
 					stackSizes[name] && numberIsValid(maxStackUsage)
 						? (maxStackUsage / stackSizes[name]) * 100
@@ -330,7 +322,6 @@
 					stackSize:
 						acc.stackSize! +
 						(numberIsValid(curr.stackSize) ? curr.stackSize : 0),
-					absentCounter: 0,
 					maxStackUsagePercent: 0,
 				};
 			},
@@ -339,7 +330,6 @@
 				cpuUsage: 0,
 				maxStackUsage: 0,
 				stackSize: 0,
-				absentCounter: 0,
 				maxStackUsagePercent: 0,
 				minFreeStack: 0,
 			},
@@ -399,13 +389,15 @@
 			logConnectionState = "Connected; waiting for system logs...";
 		};
 		logSocket.onmessage = (event) => {
-			const text = String(event.data ?? "")
-				.replace(/\u001b\[[0-9;]*m/g, "")
-				.trimEnd();
-			if (!text) {
-				return;
+			const text = String(event.data ?? "").replace(/\u001b\[[0-9;]*m/g, "");
+			for (const fragment of text.split(/\r?\n/)) {
+				if (!fragment) continue;
+				if (/^[EWIDV] \(\d+\) /.test(fragment) || logMessages.length === 0) {
+					logMessages = [...logMessages.slice(-199), fragment];
+					continue;
+				}
+				logMessages = [...logMessages.slice(0, -1), `${logMessages.at(-1)}${fragment}`];
 			}
-			logMessages = [...logMessages.slice(-199), text];
 			logConnectionState = "Connected";
 		};
 		logSocket.onerror = () => {
@@ -467,7 +459,8 @@
 				}
 			}
 			const taskRecords = data.tasks ?? rootTaskRecords;
-			const hasEspTaskData = data.tasks !== undefined || Object.keys(rootTaskRecords).length > 0;
+			const hasEspTaskData =
+				streamName === "tasks" || data.tasks !== undefined || Object.keys(rootTaskRecords).length > 0;
 			const normalizedTasks = Object.fromEntries(
 				Object.entries(taskRecords)
 					.filter(([name]) => !name.startsWith("IDLE"))
@@ -928,7 +921,7 @@
 					<p class="text-muted-foreground">Waiting for system logs...</p>
 				{:else}
 					{#each logMessages as logLine, index (`${index}-${logLine}`)}
-						<div class={`whitespace-pre-wrap break-words border-l-2 pl-2 ${logLevelClass(logLine)}`}>{logLine}</div>
+						<div class={`whitespace-pre-wrap wrap-break-word border-l-2 pl-2 ${logLevelClass(logLine)}`}>{logLine}</div>
 					{/each}
 				{/if}
 			</div>
@@ -1133,7 +1126,7 @@
 					<div class="text-muted-foreground">Waiting for system logs...</div>
 				{:else}
 					{#each logMessages as logLine, index (`${index}-${logLine}`)}
-						<div class={`whitespace-pre-wrap break-words border-l-2 pl-2 ${logLevelClass(logLine)}`}>{logLine}</div>
+						<div class={`whitespace-pre-wrap wrap-break-word border-l-2 pl-2 ${logLevelClass(logLine)}`}>{logLine}</div>
 					{/each}
 				{/if}
 				</div>

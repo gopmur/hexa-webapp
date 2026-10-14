@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { ArrowBigDownDashIcon } from "lucide-svelte";
 	import { Progress } from "$lib/components/ui/progress/index.js";
-	import * as Card from "$lib/components/ui/card/index.js";
 	import Button from "$lib/components/ui/button/button.svelte";
 	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
-	import Separator from "$lib/components/ui/separator/separator.svelte";
 	import { API_ADDRESS, WS_API_ADDRESS } from "../config";
 	import { onMount } from "svelte";
 	import { toast } from "svelte-sonner";
@@ -12,7 +10,7 @@
 	let checkForUpdatesPending = $state(false);
 	let updatesAvailable = $state(false);
 	let updatePending = $state(false);
-	let currentVersion = $state("");
+	let versionInfo: VersionResponseType | null = $state(null);
 	let latestVersion: null | string = $state(null);
 	let otaProgress = $state(0);
 	let otaProgressTotal = $state(1);
@@ -36,9 +34,13 @@
 				return;
 			}
 			const response_json: VersionResponseType = await response.json();
-			currentVersion = response_json.version;
+			versionInfo = response_json;
 		} catch {
-			currentVersion = "n/a";
+			versionInfo = {
+				version: "n/a",
+				idfVersion: "n/a",
+				buildDate: "n/a",
+			};
 		}
 	};
 
@@ -61,16 +63,35 @@
 			checkForUpdatesPending = true;
 			const response = await fetch(`${API_ADDRESS}/api/system/update/check`);
 			if (!response.ok) {
-				checkForUpdatesPending = false;
+				let message = `Update check failed (${response.status})`;
+				const errorBody = (await response.text()).trim();
+				if (errorBody) {
+					try {
+						const parsed: unknown = JSON.parse(errorBody);
+						if (
+							typeof parsed === "object" &&
+							parsed !== null &&
+							"message" in parsed &&
+							typeof parsed.message === "string"
+						) {
+							message = parsed.message;
+						} else {
+							message = errorBody.slice(0, 180);
+						}
+					} catch {
+						message = errorBody.slice(0, 180);
+					}
+				}
+				toast.error(message);
 				return;
 			}
-			const responseJson = await response.json()
-			latestVersion = `v${(await responseJson.version).trim()}`;
-			checkForUpdatesPending = false;
-			console.log(compareVersions(latestVersion, currentVersion))
-			console.log(latestVersion, currentVersion)
-			updatesAvailable = compareVersions(latestVersion, currentVersion) > 0;
+			const responseJson = await response.json();
+			latestVersion = `v${responseJson.version.trim()}`;
+			updatesAvailable =
+				compareVersions(latestVersion, versionInfo?.version ?? "n/a") > 0;
 		} catch {
+			toast.error("Could not reach the update server. Check the connection and try again.");
+		} finally {
 			checkForUpdatesPending = false;
 		}
 	};
@@ -85,9 +106,25 @@
 			});
 			if (!response.ok) {
 				updatePending = false;
+				let message = `Update request failed (${response.status})`;
+				try {
+					const errorBody: unknown = await response.json();
+					if (
+						typeof errorBody === "object" &&
+						errorBody !== null &&
+						"message" in errorBody &&
+						typeof errorBody.message === "string"
+					) {
+						message = errorBody.message;
+					}
+				} catch {
+					// Keep the status-based message when the response isn't JSON.
+				}
+				toast.error(message);
 			}
 		} catch {
 			updatePending = false;
+			toast.error("Could not reach the device to start the update. Check the connection and try again.");
 		}
 	};
 
@@ -108,7 +145,6 @@
 				toast.success("Update was successful. Restart to apply the update");
 			} else if (data?.ok === false) {
 				updatePending = false;
-				toast.error("Update failed :(");
 			}
 		};
 		getUpdateStatus();
@@ -117,18 +153,29 @@
 	});
 </script>
 
-<Card.Root class="bg-background">
-	<Card.Content class="flex flex-col gap-2">
-		<div class="flex gap-2 text-sm justify-between">
-			<span> Firmware version </span>
-			<span>
-				{currentVersion}
-			</span>
+	<dl class="grid grid-cols-1 divide-y border-y sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+		<div class="py-3 sm:px-4 sm:first:pl-0">
+			<dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+				Firmware version
+			</dt>
+			<dd class="mt-1 wrap-break-word text-sm font-semibold">{versionInfo?.version ?? "Loading..."}</dd>
 		</div>
-	</Card.Content>
-</Card.Root>
-<div class="flex flex-col gap-1">
-	<div class="px-2 text-warning">
+		<div class="py-3 sm:px-4">
+			<dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+				ESP-IDF version
+			</dt>
+			<dd class="mt-1 wrap-break-word text-sm font-semibold">{versionInfo?.idfVersion ?? "Loading..."}</dd>
+		</div>
+		<div class="py-3 sm:px-4 sm:last:pr-0">
+			<dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+				Build date
+			</dt>
+			<dd class="mt-1 wrap-break-word text-sm font-semibold">{versionInfo?.buildDate ?? "Loading..."}</dd>
+		</div>
+	</dl>
+
+	<div class="space-y-3">
+		<div class="space-y-2 text-sm text-warning">
 		{#if updatesAvailable}
 			<span>
 				New firmware update ({latestVersion}) available.
@@ -139,21 +186,22 @@
 				<Progress min={0} max={otaProgressTotal} value={otaProgress} />
 			</div>
 		{/if}
-	</div>
+		</div>
 
-	<Button
-		onclick={updatesAvailable ? onUpdateClicked : onCheckForUpdatesClicked}
-		disabled={checkForUpdatesPending || updatePending}
-	>
-		{#if checkForUpdatesPending}
-			Checking for updates
-			<Spinner />
-		{:else if updatesAvailable}
-			Update<ArrowBigDownDashIcon />
-		{:else if updatePending}
-			Updating <Spinner />
-		{:else}
-			Check for updates
-		{/if}
-	</Button>
-</div>
+		<Button
+			class="w-full sm:w-fit"
+			onclick={updatesAvailable ? onUpdateClicked : onCheckForUpdatesClicked}
+			disabled={checkForUpdatesPending || updatePending}
+		>
+			{#if checkForUpdatesPending}
+				Checking for updates
+				<Spinner />
+			{:else if updatesAvailable}
+				Update<ArrowBigDownDashIcon />
+			{:else if updatePending}
+				Updating <Spinner />
+			{:else}
+				Check for updates
+			{/if}
+		</Button>
+	</div>
