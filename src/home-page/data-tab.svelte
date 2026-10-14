@@ -61,8 +61,8 @@
 
 	type MotorFeedback = {
 		position: number;
-		velocity: number;
-		torque: number;
+		velocity?: number;
+		torque?: number;
 	};
 
 	type WsData = {
@@ -501,26 +501,22 @@
 					? [
 							{
 								position: data.motor.leftPosition,
-								velocity: data.motor.leftVelocity ?? 0,
-								torque: 0,
+								velocity: data.motor.leftVelocity,
 							},
 							{
 								position: data.motor.rightPosition,
-								velocity: data.motor.rightVelocity ?? 0,
-								torque: 0,
+								velocity: data.motor.rightVelocity,
 							},
 						]
 					: data.position0 !== undefined || data.position1 !== undefined
 						? [
 								{
 									position: data.position0 ?? 0,
-									velocity: data.velocity0 ?? 0,
-									torque: 0,
+									velocity: data.velocity0,
 								},
 								{
 									position: data.position1 ?? 0,
-									velocity: data.velocity1 ?? 0,
-									torque: 0,
+									velocity: data.velocity1,
 								},
 							]
 						: undefined);
@@ -566,7 +562,9 @@
 					const velocityValues = Object.fromEntries(
 						motorFeedbacks.map((feedback, index) => [
 							`motor${index}`,
-							radToDeg(feedback.velocity),
+							typeof feedback.velocity === "number" && Number.isFinite(feedback.velocity)
+								? radToDeg(feedback.velocity)
+								: undefined,
 						]),
 					);
 					const torqueValues = Object.fromEntries(

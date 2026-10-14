@@ -1,4 +1,5 @@
 #include "http/modules/system.hpp"
+#include "esp_app_desc.h"
 #include "esp_err.h"
 #include "esp_http_server.h"
 #include "esp_system.h"
@@ -9,6 +10,15 @@
 #include "system_logger.hpp"
 
 extern sdmmc_card_t* card;
+
+esp_err_t HttpSystemModule::get_version(httpd_req_t* req) {
+  const esp_app_desc_t* app_desc = esp_app_get_description();
+  JsonObject resp_json;
+  resp_json.set("version", app_desc->version);
+  resp_json.set("idfVersion", app_desc->idf_ver);
+  resp_json.set("buildDate", app_desc->date);
+  return send_json(req, resp_json);
+}
 
 esp_err_t HttpSystemModule::get_factory_reset(httpd_req_t* req) {
   JsonObject resp_json;
@@ -39,4 +49,5 @@ esp_err_t HttpSystemModule::get_restart(httpd_req_t* req) {
 void HttpSystemModule::register_direct_uris() {
   register_uri("/restart", HTTP_GET, get_restart);
   register_uri("/factory-reset", HTTP_GET, get_factory_reset);
+  register_uri("/version", HTTP_GET, get_version);
 }

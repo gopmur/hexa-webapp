@@ -5,41 +5,46 @@
 	import Button from "$lib/components/ui/button/button.svelte";
 	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
 	import Separator from "$lib/components/ui/separator/separator.svelte";
-	import { API_ADDRESS } from "../config";
+	import { API_ADDRESS, WS_API_ADDRESS } from "../config";
 	import { onMount } from "svelte";
 	import { toast } from "svelte-sonner";
-	import { getWebSocket } from "../context/ws";
 
 	let checkForUpdatesPending = $state(false);
-	let apiUpdateAvailable = $state(false);
-	let coreUpdateAvailable = $state(false);
 	let updatesAvailable = $state(false);
 	let updatePending = $state(false);
-	let apiVersion = $state("");
-	let coreVersion = $state("");
-	let latestApiVersion: null | string = $state(null);
-	let latestCoreVersion: null | string = $state(null);
+	let currentVersion = $state("");
+	let latestVersion: null | string = $state(null);
 	let otaProgress = $state(0);
-	let otaProgressTotal = $state(Infinity);
+	let otaProgressTotal = $state(1);
+	const compareVersions = (left: string, right: string) => {
+		const leftParts = left.replace(/^v/i, "").split(".").map(Number);
+		const rightParts = right.replace(/^v/i, "").split(".").map(Number);
+
+		for (let index = 0; index < Math.max(leftParts.length, rightParts.length); index++) {
+			const leftPart = leftParts[index] ?? 0;
+			const rightPart = rightParts[index] ?? 0;
+			if (!Number.isFinite(leftPart) || !Number.isFinite(rightPart)) return 0;
+			if (leftPart !== rightPart) return leftPart - rightPart;
+		}
+		return 0;
+	};
 
 	const getVersion = async () => {
 		try {
-			const response = await fetch(`${API_ADDRESS}/api/version`);
+			const response = await fetch(`${API_ADDRESS}/api/system/version`);
 			if (!response.ok) {
 				return;
 			}
 			const response_json: VersionResponseType = await response.json();
-			apiVersion = response_json.api;
-			coreVersion = response_json.core;
+			currentVersion = response_json.version;
 		} catch {
-			apiVersion = "n/a";
-			coreVersion = "n/a";
+			currentVersion = "n/a";
 		}
 	};
 
 	const getUpdateStatus = async () => {
 		try {
-			const response = await fetch(`${API_ADDRESS}/api/update/status`);
+			const response = await fetch(`${API_ADDRESS}/api/system/update/status`);
 			if (!response.ok) {
 				return;
 			}
@@ -54,18 +59,17 @@
 	const onCheckForUpdatesClicked = async () => {
 		try {
 			checkForUpdatesPending = true;
-			const response = await fetch(`${API_ADDRESS}/api/update/check`);
+			const response = await fetch(`${API_ADDRESS}/api/system/update/check`);
 			if (!response.ok) {
 				checkForUpdatesPending = false;
 				return;
 			}
-			const response_json: LatestVersionResponseType = await response.json();
-			latestApiVersion = response_json.api;
-			latestCoreVersion = response_json.core;
+			const responseJson = await response.json()
+			latestVersion = `v${(await responseJson.version).trim()}`;
 			checkForUpdatesPending = false;
-			apiUpdateAvailable = latestApiVersion > apiVersion;
-			coreUpdateAvailable = latestCoreVersion > coreVersion;
-			updatesAvailable = coreUpdateAvailable || apiUpdateAvailable;
+			console.log(compareVersions(latestVersion, currentVersion))
+			console.log(latestVersion, currentVersion)
+			updatesAvailable = compareVersions(latestVersion, currentVersion) > 0;
 		} catch {
 			checkForUpdatesPending = false;
 		}
@@ -74,15 +78,10 @@
 	const onUpdateClicked = async () => {
 		try {
 			updatePending = true;
-			apiUpdateAvailable = false;
-			coreUpdateAvailable = false;
 			updatesAvailable = false;
-			const response = await fetch(`${API_ADDRESS}/api/update`, {
+			const response = await fetch(`${API_ADDRESS}/api/system/update`, {
 				method: "PUT",
-				body: JSON.stringify({
-					api: latestApiVersion,
-					core: latestCoreVersion,
-				}),
+				body: JSON.stringify({ version: latestVersion }),
 			});
 			if (!response.ok) {
 				updatePending = false;
@@ -92,53 +91,47 @@
 		}
 	};
 
-	const ws = getWebSocket();
-
 	onMount(() => {
+		const ws = new WebSocket(`${WS_API_ADDRESS}/api/stream/ota`);
 		ws.onmessage = (event) => {
 			const data = JSON.parse(event.data);
-			otaProgressTotal = data?.ota_progress?.total ?? 1;
-			otaProgress = data?.ota_progress?.progress ?? 0;
-			if (data?.ota?.ok === true) {
+			if (
+				typeof data?.total === "number" &&
+				typeof data?.progress === "number" &&
+				data.total > 0
+			) {
+				otaProgressTotal = data.total;
+				otaProgress = Math.min(Math.max(data.progress, 0), data.total);
+			}
+			if (data?.ok === true) {
 				updatePending = false;
 				toast.success("Update was successful. Restart to apply the update");
-			} else if (data?.ota?.ok === false) {
+			} else if (data?.ok === false) {
 				updatePending = false;
 				toast.error("Update failed :(");
 			}
 		};
 		getUpdateStatus();
 		getVersion();
+		return () => ws.close();
 	});
 </script>
 
 <Card.Root class="bg-background">
 	<Card.Content class="flex flex-col gap-2">
 		<div class="flex gap-2 text-sm justify-between">
-			<span> API version </span>
+			<span> Firmware version </span>
 			<span>
-				{apiVersion}
-			</span>
-		</div>
-		<Separator />
-		<div class="flex gap-2 text-sm justify-between">
-			<span> Core version </span>
-			<span>
-				{coreVersion}
+				{currentVersion}
 			</span>
 		</div>
 	</Card.Content>
 </Card.Root>
 <div class="flex flex-col gap-1">
 	<div class="px-2 text-warning">
-		{#if apiUpdateAvailable}
+		{#if updatesAvailable}
 			<span>
-				New update for API (v{latestApiVersion}) available.
-			</span>
-		{/if}
-		{#if coreUpdateAvailable}
-			<span>
-				New update for core (v{latestCoreVersion}) available.
+				New firmware update ({latestVersion}) available.
 			</span>
 		{/if}
 		{#if updatePending}
