@@ -7,6 +7,7 @@
 	import { onMount } from "svelte";
 	import { formatSize, numberIsValid, radToDeg, sleep } from "$lib/utils";
 	import Spinner from "$lib/components/ui/spinner/spinner.svelte";
+	import Input from "$lib/components/ui/input/input.svelte";
 	import ChartLegend from "./data-tab/chart-legend.svelte";
 	import MotorChartCard from "./data-tab/motor-chart-card.svelte";
 	import ChartPauseButton from "./data-tab/chart-pause-button.svelte";
@@ -132,12 +133,28 @@
 	} & Record<string, number>;
 
 	type StackSizeResponse = Record<string, number>;
+	type MotorConfiguration = {
+		canId: number;
+		torqueLimit: number;
+		torqueConstant: number;
+		direction: string;
+	};
+	type MotorConfigurationDraft = {
+		torqueLimit: string;
+		torqueConstant: string;
+	};
 
 	type DataTab =  "esp-task-data" | "imu" | "motor" | "heap" | "logs";
 	type ChartPauseKey = "gyro" | "acceleration" | "motorPosition" | "motorVelocity" | "motorTorque" | "heap";
 
 	let stmTaskTableData: TaskTableData[] = $state([]);
 	let espTaskTableData: TaskTableData[] = $state([]);
+	let motorConfigurations: MotorConfiguration[] = $state([]);
+	let motorConfigurationDrafts: MotorConfigurationDraft[] = $state([]);
+	let motorConfigLoading = $state(false);
+	let motorConfigError = $state("");
+	let savingMotorIndex: number | null = $state(null);
+	let motorConfigSaveMessages: Record<number, string> = $state({});
 
 	let dataTab: DataTab = $state("esp-task-data");
 
@@ -747,8 +764,71 @@
 		if (dataTab !== "logs") connectDataStream();
 	};
 
+	const loadMotorConfigurations = async () => {
+		motorConfigLoading = true;
+		motorConfigError = "";
+		try {
+			const response = await fetch(`${API_ADDRESS}/api/motor`);
+			if (!response.ok) throw new Error(`Request failed (${response.status})`);
+			const payload: unknown = await response.json();
+			if (!Array.isArray(payload)) throw new Error("Invalid motor configuration response");
+			motorConfigurations = payload as MotorConfiguration[];
+			motorConfigurationDrafts = motorConfigurations.map((motor) => ({
+				torqueLimit: motor.torqueLimit.toFixed(2),
+				torqueConstant: motor.torqueConstant.toFixed(2),
+			}));
+		} catch (error) {
+			motorConfigError = error instanceof Error ? error.message : "Unable to load motor configurations";
+		} finally {
+			motorConfigLoading = false;
+		}
+	};
+
+	const saveMotorConfiguration = async (index: number) => {
+		const configuration = motorConfigurations[index];
+		const draft = motorConfigurationDrafts[index];
+		if (!configuration || !draft) return;
+		const torqueConstant = Number(draft.torqueConstant);
+		const torqueLimit = Number(draft.torqueLimit);
+		if (
+			draft.torqueConstant.trim() === "" ||
+			draft.torqueLimit.trim() === "" ||
+			!Number.isFinite(torqueConstant) ||
+			!Number.isFinite(torqueLimit) ||
+			torqueConstant < 0 ||
+			torqueLimit < 0
+		) {
+			motorConfigSaveMessages[index] = "Enter valid non-negative values";
+			return;
+		}
+		savingMotorIndex = index;
+		motorConfigSaveMessages[index] = "";
+		try {
+			const response = await fetch(`${API_ADDRESS}/api/motor/config`, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					index,
+					torqueConstant,
+					torqueLimit,
+				}),
+			});
+			if (!response.ok) throw new Error(`Save failed (${response.status})`);
+			configuration.torqueConstant = torqueConstant;
+			configuration.torqueLimit = torqueLimit;
+			draft.torqueConstant = torqueConstant.toFixed(2);
+			draft.torqueLimit = torqueLimit.toFixed(2);
+			motorConfigSaveMessages[index] = "Saved";
+		} catch (error) {
+			motorConfigSaveMessages[index] = error instanceof Error ? error.message : "Save failed";
+		} finally {
+			savingMotorIndex = null;
+		}
+	};
+
 	onMount(() => {
 		if (dashboard) {
+			loadMotorConfigurations();
 			connectDataStream("tasks");
 			connectDataStream("imu");
 			connectDataStream("motor");
@@ -811,6 +891,59 @@
 											: "NA"}
 									</Table.Cell>
 									<Table.Cell>{formatMemorySize(task.minFreeStack)}</Table.Cell>
+								</Table.Row>
+							{/each}
+						</Table.Body>
+					</Table.Root>
+				{/if}
+			</div>
+		</Card.Root>
+		<Card.Root class="col-span-full min-w-0 gap-0 rounded-lg py-0">
+			<header class="flex shrink-0 items-center justify-between border-b px-3 py-2">
+				<h3 class="text-xs font-semibold">Motor configurations</h3>
+				<Button variant="outline" size="sm" onclick={loadMotorConfigurations} disabled={motorConfigLoading}>
+					{motorConfigLoading ? "Loading..." : "Refresh"}
+				</Button>
+			</header>
+			<div class="overflow-auto">
+				{#if motorConfigError}
+					<p class="p-3 text-xs text-destructive">Unable to load motors: {motorConfigError}</p>
+				{:else if motorConfigLoading && motorConfigurations.length === 0}
+					<p class="p-3 text-xs text-muted-foreground">Loading motor configurations...</p>
+				{:else if motorConfigurations.length === 0}
+					<p class="p-3 text-xs text-muted-foreground">No motors available.</p>
+				{:else}
+					<Table.Root>
+						<Table.Header>
+							<Table.Row>
+								<Table.Head>CAN ID</Table.Head>
+								<Table.Head>Direction</Table.Head>
+								<Table.Head>Torque constant</Table.Head>
+								<Table.Head>Torque limit</Table.Head>
+								<Table.Head class="w-28">Action</Table.Head>
+							</Table.Row>
+						</Table.Header>
+						<Table.Body>
+							{#each motorConfigurations as motor, index (index)}
+								<Table.Row>
+									<Table.Cell class="font-medium">{motor.canId}</Table.Cell>
+									<Table.Cell>{motor.direction}</Table.Cell>
+									<Table.Cell>
+											<Input aria-label={`Motor ${motor.canId} torque constant`} type="text" inputmode="decimal" bind:value={motorConfigurationDrafts[index].torqueConstant} />
+									</Table.Cell>
+									<Table.Cell>
+											<Input aria-label={`Motor ${motor.canId} torque limit`} type="text" inputmode="decimal" bind:value={motorConfigurationDrafts[index].torqueLimit} />
+									</Table.Cell>
+									<Table.Cell>
+										<div class="flex items-center gap-2">
+											<Button size="sm" onclick={() => saveMotorConfiguration(index)} disabled={savingMotorIndex !== null}>
+												{savingMotorIndex === index ? "Saving..." : "Save"}
+											</Button>
+											{#if motorConfigSaveMessages[index]}
+												<span class="text-[10px] text-muted-foreground">{motorConfigSaveMessages[index]}</span>
+											{/if}
+										</div>
+									</Table.Cell>
 								</Table.Row>
 							{/each}
 						</Table.Body>

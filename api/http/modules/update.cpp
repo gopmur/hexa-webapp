@@ -17,9 +17,9 @@ HttpUpdateModule::GetCheckHandler HttpUpdateModule::get_check;
 HttpUpdateModule::PutHandler HttpUpdateModule::put;
 
 void HttpUpdateModule::PutHandler::main(HttpJsonAsyncHandlerArgs* args) {
+  ota_busy = true;
   auto req_json = args->json;
   auto req = args->req;
-  ota_busy = true;
 
   JsonObject resp_json;
   auto version_result = req_json.get_string("version", &resp_json);
@@ -33,11 +33,13 @@ void HttpUpdateModule::PutHandler::main(HttpJsonAsyncHandlerArgs* args) {
       .ota_resumption = true,
   };
 
-  int downloaded = 0;
-  int total = 0;
+  int downloaded;
+  int total;
 
   std::string version;
   std::string uri;
+  const esp_app_desc_t* app_desc = esp_app_get_description();
+  auto currect_version = app_desc->version;
 
   if (std::holds_alternative<JsonError>(version_result)) {
     send_json(req, resp_json, HTTPD_400_BAD_REQUEST);
@@ -61,30 +63,25 @@ void HttpUpdateModule::PutHandler::main(HttpJsonAsyncHandlerArgs* args) {
     goto cleanup;
   }
 
-  while ((err = esp_https_ota_perform(ota_handle)) == ESP_ERR_HTTPS_OTA_IN_PROGRESS) {
+  LOGI("updating form %s to %s", currect_version, version.c_str());
+  while (esp_https_ota_perform(ota_handle) == ESP_ERR_HTTPS_OTA_IN_PROGRESS) {
     downloaded = esp_https_ota_get_image_len_read(ota_handle);
     total = esp_https_ota_get_image_size(ota_handle);
+    LOGI("updating %d%% - %d/%d (bytes)", downloaded * 100 / total, downloaded, total);
     ws_task.send_to_ota_connections(total, downloaded);
   }
 
   if (err != ESP_OK) {
     ws_task.send_to_ota_connections(false);
-    esp_https_ota_abort(ota_handle);
-    send_message_json(req, "ota download failed", HTTPD_500_INTERNAL_SERVER_ERROR);
     goto cleanup;
   }
 
-  total = esp_https_ota_get_image_size(ota_handle);
-  err = esp_https_ota_finish(ota_handle);
-  if (err != ESP_OK) {
-    ws_task.send_to_ota_connections(false);
-    send_message_json(req, "ota finish failed", HTTPD_500_INTERNAL_SERVER_ERROR);
-    goto cleanup;
-  }
-
+  LOGI("updating %d%% - %d/%d (bytes)", total * 100 / total, total, total);
+  LOGI("update to %s completed. waiting for restart", version.c_str());
   ws_task.send_to_ota_connections(total, total);
   ws_task.send_to_ota_connections(true);
 
+  esp_https_ota_finish(ota_handle);
   send_success_json(req);
 
 cleanup:
@@ -143,6 +140,6 @@ esp_err_t HttpUpdateModule::get_ota_status(httpd_req_t* req) {
 
 void HttpUpdateModule::register_direct_uris() {
   register_async_uri("/check", HTTP_GET, &get_check);
+  register_async_uri_with_option("/", HTTP_PUT, &put);
   register_uri("/status", HTTP_GET, get_ota_status);
-  register_async_uri("/", HTTP_PUT, &put);
 }
