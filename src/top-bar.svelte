@@ -326,12 +326,6 @@
 						<RotateCw />
 						Restart
 					</Button>
-					<Button variant="secondary" onclick={restartEsp}
-						><RotateCw />Restart ESP32</Button
-					>
-					<Button variant="secondary" onclick={restartStm}
-						><RotateCw />Restart STM32</Button
-					>
 				</Dialog.Content>
 				<Dialog.Trigger>
 					<Button variant="outline" size="icon-lg">
